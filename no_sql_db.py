@@ -7,41 +7,12 @@
 
 # A heads up, this code is for demonstration purposes; you might want to modify it for your own needs
 # Currently it does basic insertions and lookups
+import pickle, bcrypt
+import os.path
+from Crypto.Hash import SHA256
 
-class Table():
-    def __init__(self, table_name, *table_fields):
-        self.entries = []
-        self.fields = table_fields
-        self.name = table_name
-
-    def create_entry(self, data):
-        '''
-        Inserts an entry in the table
-        Doesn't do any type checking
-        '''
-
-        # Bare minimum, we'll check the number of fields
-        if len(data) != len(self.fields):
-            raise ValueError('Wrong number of fields for table')
-
-        self.entries.append(data)
-        return
-
-    def search_table(self, target_field_name, target_value):
-        '''
-            Search the table given a field name and a target value
-            Returns the first entry found that matches
-        '''
-        # Lazy search for matching entries
-        for entry in self.entries:
-            for field_name, value in zip(self.fields, entry):
-                if target_field_name == field_name and target_value == value:
-                    return entry
-
-        # Nothing Found
-        return None
-
-
+salt_table = "salt.pkl"
+pass_table = "pass.pkl"
 class DB():
     '''
     This is a singleton class that handles all the tables
@@ -49,35 +20,42 @@ class DB():
     A method to write to and load from file might also be useful for your purposes
     '''
     def __init__(self):
-        self.tables = {}
+        self.passwords = {}
+        self.salt = {}
 
-        # Setup your tables
-        self.add_table('users', "id", "username", "password")
+    def save_tables(self):
+        with open(pass_table, "wb") as f:
+            pickle.dump(self.passwords, f)
+        with open(salt_table, "wb") as f:
+            pickle.dump(self.salt, f)
+    
+    def load(self):
+        if not os.path.isfile(pass_table) and not os.path.isfile(salt_table):
+            return
+        with open(pass_table, "rb") as f:
+            self.passwords = pickle.load(f)
+        with open(salt_table, "rb") as f:
+            self.salt = pickle.load(f)
         
-        return
-
-    def add_table(self, table_name, *table_fields):
-        '''
-            Adds a table to the database
-        '''
-        table = Table(table_name, *table_fields)
-        self.tables[table_name] = table
-
-        return
-
-
-    def search_table(self, table_name, target_field_name, target_value):
-        '''
-            Calls the search table method on an appropriate table
-        '''
-        return self.tables[table_name].search_table(target_field_name, target_value)
-
-    def create_table_entry(self, table_name, data):
-        '''
-            Calls the create entry method on the appropriate table
-        '''
-        return self.tables[table_name].create_entry(data)
-
+    def user_authenticate(self, user, password):
+        if not self.exists(user):
+            return False
+        hash = SHA256.new()
+        hash.update((self.salt[user] + password))
+        return True if hash.hexdigest() == self.passwords[user] else False
+        
+    def add_user(self, user, password):
+        gen_salt = bcrypt.gensalt()
+        self.salt[user] = gen_salt
+        hash = SHA256.new()
+        hash.update((gen_salt + password))
+        self.passwords[user] = hash.hexdigest()
+        
+    def exists(self, user):
+        if user in self.passwords.keys():
+            return True
+        return False
+        
 
 # Our global database
 # Invoke this as needed

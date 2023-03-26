@@ -7,6 +7,7 @@
 '''
 import view
 import random
+from no_sql_db import database
 
 # Initialise our views, all arguments are defaults for the template
 page_view = view.View()
@@ -15,12 +16,14 @@ page_view = view.View()
 # Index
 #-----------------------------------------------------------------------------
 
-def index():
+def index(username):
     '''
         index
         Returns the view for the index
     '''
-    return page_view("index")
+    if (not username):
+        username = "User"
+    return page_view("index", name=username)
 
 #-----------------------------------------------------------------------------
 # Login
@@ -34,35 +37,61 @@ def login_form():
     return page_view("login")
 
 #-----------------------------------------------------------------------------
+# Logout
+#-----------------------------------------------------------------------------
+
+def logout():
+    '''
+        login_form
+        Returns the view for the login_form
+    '''
+    return page_view("logout")
+
+
+#-----------------------------------------------------------------------------
+# Register
+#-----------------------------------------------------------------------------
+
+def register():
+    '''
+        index
+        Returns the view for the index
+    '''
+    return page_view("register")
+
+#-----------------------------------------------------------------------------
+
+# Check the login credentials
+def register_check(username, password, password_c, pass_length, upper, num, special):
+    database.load()
+    register = True
+    if password != password_c:
+        err_str = "Passwords weren't the same."
+        register = False
+    elif not username:
+        err_str = "Empty username field"
+        register = False
+    elif pass_length <= 10:
+        err_str = "Password is too short."
+        register = False
+    elif not upper or not num or not special:
+        err_str = "Password must contain at least an uppercase character,number and special character"
+        register = False
+    elif database.exists(username):
+        err_str = "User already exists, please login"
+        register = False
+    if register: 
+        database.add_user(username, password)
+        database.save_tables()
+        return page_view("register_valid")
+    else:
+        return page_view("register_invalid", reason=err_str)
 
 # Check the login credentials
 def login_check(username, password):
-    '''
-        login_check
-        Checks usernames and passwords
-
-        :: username :: The username
-        :: password :: The password
-
-        Returns either a view for valid credentials, or a view for invalid credentials
-    '''
-
+    database.load()
     # By default assume good creds
-    login = True
-    
-    if username != "admin": # Wrong Username
-        err_str = "Incorrect Username"
-        login = False
-    
-    if password != "password": # Wrong password
-        err_str = "Incorrect Password"
-        login = False
-        
-    if login: 
-        return page_view("valid", name=username)
-    else:
-        return page_view("invalid", reason=err_str)
-
+    return database.user_authenticate(username, password)
 #-----------------------------------------------------------------------------
 # About
 #-----------------------------------------------------------------------------

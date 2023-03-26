@@ -5,8 +5,10 @@
 '''
 
 from bottle import route, get, post, error, request, static_file
-
+from Crypto.Hash import SHA256
 import model
+
+user = ""
 
 #-----------------------------------------------------------------------------
 # Static file paths
@@ -71,7 +73,7 @@ def get_index():
         
         Serves the index page
     '''
-    return model.index()
+    return model.index(user)
 
 #-----------------------------------------------------------------------------
 
@@ -87,9 +89,53 @@ def get_login_controller():
 
 #-----------------------------------------------------------------------------
 
+
+@get('/logout')
+def logout():
+    global user
+    user = ""
+    return model.logout()
+
+#-----------------------------------------------------------------------------
+
 # Attempt the login
 @post('/login')
 def post_login():
+    '''
+        post_login
+        
+        Handles login attempts
+        Expects a form containing 'username' and 'password' fields
+    '''
+    global user
+    # Handle the form processing
+    username = request.forms.get('username')
+    password = request.forms.get('password')
+    hash = SHA256.new()
+    hash.update(password.encode())
+    password = hash.hexdigest().encode()
+    
+    # Call the appropriate method
+    if model.login_check(username, password):
+        user = username
+        return model.page_view("valid", name=username)
+    else:   
+        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist")
+
+
+
+#-----------------------------------------------------------------------------
+
+# Display the register page
+@get('/register')
+def get_register_controller():
+
+    return model.register()
+
+#-----------------------------------------------------------------------------
+
+@post('/register')
+def post_register():
     '''
         post_login
         
@@ -100,10 +146,20 @@ def post_login():
     # Handle the form processing
     username = request.forms.get('username')
     password = request.forms.get('password')
+    password_c = request.forms.get('password_confirm')
+    upper = any(c.isupper() for c in password)
+    special = any(not c.isalnum() and c != ' ' for c in password)
+    num = any(c.isnumeric() for c in password)
+    length = len(password)
+    hash = SHA256.new()
+    hash.update(password.encode())
+    password = hash.hexdigest().encode()
+    hash = SHA256.new()
+    hash.update(password_c.encode())
+    password_c = hash.hexdigest().encode()
     
     # Call the appropriate method
-    return model.login_check(username, password)
-
+    return model.register_check(username, password, password_c, length, upper, num, special)
 
 
 #-----------------------------------------------------------------------------
