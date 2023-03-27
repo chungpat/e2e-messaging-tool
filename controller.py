@@ -7,8 +7,10 @@
 from bottle import route, get, post, error, request, static_file
 from Crypto.Hash import SHA256
 import model
+from no_sql_db import database
 
 user = ""
+header = "header"
 
 #-----------------------------------------------------------------------------
 # Static file paths
@@ -93,7 +95,9 @@ def get_login_controller():
 @get('/logout')
 def logout():
     global user
+    global header
     user = ""
+    header = "header"
     return model.logout()
 
 #-----------------------------------------------------------------------------
@@ -108,6 +112,7 @@ def post_login():
         Expects a form containing 'username' and 'password' fields
     '''
     global user
+    global header
     # Handle the form processing
     username = request.forms.get('username')
     password = request.forms.get('password')
@@ -118,9 +123,13 @@ def post_login():
     # Call the appropriate method
     if model.login_check(username, password):
         user = username
-        return model.page_view("valid", name=username)
+        header = "loggedinheader"
+        friends = [name for name in database.passwords.keys() if name != username]
+        if not friends:
+            friends = "No friends :("
+        return model.page_view("index", name=username, data=friends, header=header)
     else:   
-        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist")
+        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist", header=header)
 
 
 

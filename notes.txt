@@ -1,0 +1,8 @@
+Using SHA256 as hashing algorithm
+No need to personally encrypt or hash password when sending over HTTPS, already encrypted since client-server communication uses TLS 
+Successfully registration generates a unique salt which is concatenated to the already hashed password and then hashing it again. This is then stored in the database along with the user unique salt.
+Logging in basically repeats the same process but checks it with the already stored password in the database
+User session tracked using a variable which stores the current user
+
+Friends list is just every registered user in the database except the logged in user
+Friends list shows empty if not logged in ("No Friends :(")

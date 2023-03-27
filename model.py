@@ -8,6 +8,7 @@
 import view
 import random
 from no_sql_db import database
+from controller import header
 
 # Initialise our views, all arguments are defaults for the template
 page_view = view.View()
@@ -21,9 +22,14 @@ def index(username):
         index
         Returns the view for the index
     '''
+    friends = []
     if (not username):
         username = "User"
-    return page_view("index", name=username)
+    else:
+        friends = [name for name in database.passwords.keys() if name != username]
+    if not friends:
+        friends = "No Friends :("
+    return page_view("index", name=username, data=friends, header=header)
 
 #-----------------------------------------------------------------------------
 # Login
@@ -34,7 +40,7 @@ def login_form():
         login_form
         Returns the view for the login_form
     '''
-    return page_view("login")
+    return page_view("login", header=header)
 
 #-----------------------------------------------------------------------------
 # Logout
@@ -45,7 +51,7 @@ def logout():
         login_form
         Returns the view for the login_form
     '''
-    return page_view("logout")
+    return page_view("logout", header=header)
 
 
 #-----------------------------------------------------------------------------
@@ -57,7 +63,7 @@ def register():
         index
         Returns the view for the index
     '''
-    return page_view("register")
+    return page_view("register", header=header)
 
 #-----------------------------------------------------------------------------
 
@@ -83,14 +89,13 @@ def register_check(username, password, password_c, pass_length, upper, num, spec
     if register: 
         database.add_user(username, password)
         database.save_tables()
-        return page_view("register_valid")
+        return page_view("register_valid", header=header)
     else:
-        return page_view("register_invalid", reason=err_str)
+        return page_view("register_invalid", reason=err_str, header=header)
 
 # Check the login credentials
 def login_check(username, password):
     database.load()
-    # By default assume good creds
     return database.user_authenticate(username, password)
 #-----------------------------------------------------------------------------
 # About
@@ -101,7 +106,7 @@ def about():
         about
         Returns the view for the about page
     '''
-    return page_view("about", garble=about_garble())
+    return page_view("about", garble=about_garble(), header=header)
 
 
 
@@ -139,4 +144,4 @@ def debug(cmd):
 def handle_errors(error):
     error_type = error.status_line
     error_msg = error.body
-    return page_view("error", error_type=error_type, error_msg=error_msg)
+    return page_view("error", error_type=error_type, error_msg=error_msg, header=header)
