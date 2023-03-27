@@ -8,7 +8,6 @@
 import view
 import random
 from no_sql_db import database
-from controller import header
 
 # Initialise our views, all arguments are defaults for the template
 page_view = view.View()
@@ -17,7 +16,7 @@ page_view = view.View()
 # Index
 #-----------------------------------------------------------------------------
 
-def index(username):
+def index(username, header):
     '''
         index
         Returns the view for the index
@@ -35,7 +34,7 @@ def index(username):
 # Login
 #-----------------------------------------------------------------------------
 
-def login_form():
+def login_form(header):
     '''
         login_form
         Returns the view for the login_form
@@ -46,7 +45,7 @@ def login_form():
 # Logout
 #-----------------------------------------------------------------------------
 
-def logout():
+def logout(header):
     '''
         login_form
         Returns the view for the login_form
@@ -58,7 +57,7 @@ def logout():
 # Register
 #-----------------------------------------------------------------------------
 
-def register():
+def register(header):
     '''
         index
         Returns the view for the index
@@ -68,7 +67,7 @@ def register():
 #-----------------------------------------------------------------------------
 
 # Check the login credentials
-def register_check(username, password, password_c, pass_length, upper, num, special):
+def register_check(username, password, password_c, pass_length, upper, num, special, header):
     database.load()
     register = True
     if password != password_c:
@@ -101,7 +100,7 @@ def login_check(username, password):
 # About
 #-----------------------------------------------------------------------------
 
-def about():
+def about(header):
     '''
         about
         Returns the view for the about page
@@ -144,4 +143,4 @@ def debug(cmd):
 def handle_errors(error):
     error_type = error.status_line
     error_msg = error.body
-    return page_view("error", error_type=error_type, error_msg=error_msg, header=header)
+    return page_view("error", error_type=error_type, error_msg=error_msg)

@@ -75,7 +75,7 @@ def get_index():
         
         Serves the index page
     '''
-    return model.index(user)
+    return model.index(user, header)
 
 #-----------------------------------------------------------------------------
 
@@ -87,7 +87,7 @@ def get_login_controller():
         
         Serves the login page
     '''
-    return model.login_form()
+    return model.login_form(header)
 
 #-----------------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ def logout():
     global header
     user = ""
     header = "header"
-    return model.logout()
+    return model.logout(header)
 
 #-----------------------------------------------------------------------------
 
@@ -139,7 +139,7 @@ def post_login():
 @get('/register')
 def get_register_controller():
 
-    return model.register()
+    return model.register(header)
 
 #-----------------------------------------------------------------------------
 
@@ -168,7 +168,7 @@ def post_register():
     password_c = hash.hexdigest().encode()
     
     # Call the appropriate method
-    return model.register_check(username, password, password_c, length, upper, num, special)
+    return model.register_check(username, password, password_c, length, upper, num, special, header)
 
 
 #-----------------------------------------------------------------------------
@@ -180,7 +180,7 @@ def get_about():
         
         Serves the about page
     '''
-    return model.about()
+    return model.about(header)
 #-----------------------------------------------------------------------------
 
 # Help with debugging
