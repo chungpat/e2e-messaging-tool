@@ -6,3 +6,5 @@ User session tracked using a variable which stores the current user
 
 Friends list is just every registered user in the database except the logged in user
 Friends list shows empty if not logged in ("No Friends :(")
+
+Passphrase for myCA.key: INFO2222project

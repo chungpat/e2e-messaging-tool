@@ -16,6 +16,7 @@
 import os
 import sys
 from bottle import run
+import gunicorn
 #-----------------------------------------------------------------------------
 # You may eventually wish to put these in their own directories and then load 
 # Each file separately
@@ -43,7 +44,9 @@ def run_server():
         run_server
         Runs a bottle server
     '''
-    run(host=host, port=port, debug=debug)
+    # run(host=host, port=port, debug=debug)
+    run(host=host, port=port, debug=debug, server='gunicorn', certfile='./certs/info2222.project.crt', keyfile='./certs/info2222.project.key')
+
 
 #-----------------------------------------------------------------------------
 # Optional SQL support
