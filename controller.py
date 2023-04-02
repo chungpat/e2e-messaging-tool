@@ -3,11 +3,36 @@
     You should not have anything beyond basic page loads, handling forms and 
     maybe some simple program logic
 '''
-
-from bottle import route, get, post, error, request, static_file
+import gevent.monkey
+gevent.monkey.patch_all()
+import bottle
+from bottle import route, get, post, error, request, static_file, run
 from Crypto.Hash import SHA256
 import model
 from no_sql_db import database
+import collections
+from time import time
+from gevent import sleep
+import socketio
+
+messages = collections.deque()
+
+MESSAGE_TIMEOUT = 10
+FLOOD_MESSAGES = 5
+FETCH_FREQ = 1000
+
+class Message(object):
+    def __init__(self, nick, text):
+        self.time = time()
+        self.nick = nick
+        self.text = text
+
+    def json(self):
+        return {'text': self.text, 'nick': self.nick, 'time': self.time}
+
+js = '''
+
+'''
 
 user = ""
 header = "header"
@@ -102,6 +127,51 @@ def logout():
 
 #-----------------------------------------------------------------------------
 
+#Chat
+@get('/chat')
+@get('/:channel')
+def chat(channel="lobby"):
+    return model.chat(user, header)
+
+
+@get('/api/info')
+def on_info():
+    return {
+        'server_name': 'Bottle Test Chat',
+        'server_time': time(),
+        'refresh_interval': 1000
+    }
+    
+@post('/api/send_message')
+def on_message():
+    text = request.forms.get('text')
+    nick = request.forms.get('nick')
+    if not text: return {'error': 'No text.'}
+    if not nick: return {'error': 'No nick.'}
+
+    # Garbage collection (delete old messages from cache)
+    timeout = time() - MESSAGE_TIMEOUT
+    while messages and messages[0].time < timeout:
+        messages.popleft()
+
+    # Flood protection
+    if len([m for m in messages if m.nick == nick]) > FLOOD_MESSAGES:
+        return {'error': 'Messages arrive too fast.'}
+
+    messages.append(Message(nick, text))
+    return {'status': 'OK'}
+
+@get('/api/fetch')
+def on_fetch():
+    ''' Return all messages of the last ten seconds. '''
+    since = float(request.params.get('since', 0))
+    # Fetch new messages
+    updates = [m.json() for m in messages if m.time > since]
+    # Send up to 10 messages at once.
+    return { 'messages': updates[:10] }
+
+#-----------------------------------------------------------------------------
+
 # Attempt the login
 @post('/login')
 def post_login():
@@ -127,6 +197,7 @@ def post_login():
         friends = [name for name in database.passwords.keys() if name != username]
         if not friends:
             friends = "No friends :("
+        
         return model.page_view("index", name=username, data=friends, header=header)
     else:   
         return model.page_view("invalid", reason="Invalid username or password/User doesn't exist", header=header)

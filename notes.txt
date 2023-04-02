@@ -8,3 +8,13 @@ Friends list is just every registered user in the database except the logged in 
 Friends list shows empty if not logged in ("No Friends :(")
 
 Passphrase for myCA.key: INFO2222project
+
+
+Make login sessions instead of having just one
+Right now login sessions are overridden on different devices
+Store message history in encrypted fashion
+
+Make host server public
+Set hostname to 0.0.0.0
+Connect using https://{ip address}:{portnumber}
+Connect on host using {127.0.0.1}:{port number}
