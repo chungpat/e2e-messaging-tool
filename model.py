@@ -56,9 +56,12 @@ def logout(header):
 # Chat
 #-----------------------------------------------------------------------------
 
-def chat(user, header):
-    if user:
+def chat(user, header, chat_members):
+    if user and user in chat_members:
         return page_view("chat", header=header)
+    elif user not in chat_members:
+        friends = [name for name in database.passwords.keys() if name != user]
+        return page_view("index", name=user, header=header, data=friends)
     else:
         return page_view("login", header=header)
 #-----------------------------------------------------------------------------

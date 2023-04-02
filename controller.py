@@ -8,12 +8,15 @@ gevent.monkey.patch_all()
 import bottle
 from bottle import route, get, post, error, request, static_file, run
 from Crypto.Hash import SHA256
+from Crypto.Cipher import AES
 import model
 from no_sql_db import database
 import collections
 from time import time
 from gevent import sleep
-import socketio
+import base64
+import os
+from cryptography.fernet import Fernet
 
 messages = collections.deque()
 
@@ -34,7 +37,13 @@ js = '''
 
 '''
 
+random_key = Fernet.generate_key()
+fernet = Fernet(random_key)
+
+
 user = ""
+chat_members = []
+logged_in = []
 header = "header"
 
 #-----------------------------------------------------------------------------
@@ -121,8 +130,12 @@ def get_login_controller():
 def logout():
     global user
     global header
-    user = ""
+    global messages
     header = "header"
+    collections.deque.clear(messages)
+    if user in chat_members:
+        chat_members.remove(user)
+    user = ""
     return model.logout(header)
 
 #-----------------------------------------------------------------------------
@@ -131,7 +144,7 @@ def logout():
 @get('/chat')
 @get('/:channel')
 def chat(channel="lobby"):
-    return model.chat(user, header)
+    return model.chat(user, header, chat_members)
 
 
 @get('/api/info')
@@ -145,19 +158,13 @@ def on_info():
 @post('/api/send_message')
 def on_message():
     text = request.forms.get('text')
-    nick = request.forms.get('nick')
+    nick = user
     if not text: return {'error': 'No text.'}
-    if not nick: return {'error': 'No nick.'}
-
-    # Garbage collection (delete old messages from cache)
-    timeout = time() - MESSAGE_TIMEOUT
-    while messages and messages[0].time < timeout:
-        messages.popleft()
 
     # Flood protection
     if len([m for m in messages if m.nick == nick]) > FLOOD_MESSAGES:
         return {'error': 'Messages arrive too fast.'}
-
+    text = fernet.encrypt(text.encode())
     messages.append(Message(nick, text))
     return {'status': 'OK'}
 
@@ -166,7 +173,13 @@ def on_fetch():
     ''' Return all messages of the last ten seconds. '''
     since = float(request.params.get('since', 0))
     # Fetch new messages
-    updates = [m.json() for m in messages if m.time > since]
+    temp = []
+    for m in messages:
+        text = fernet.decrypt(m.text).decode()
+        message = Message(m.nick, text)
+        message.time = m.time
+        temp.append(message)
+    updates = [m.json() for m in temp if m.time > since]
     # Send up to 10 messages at once.
     return { 'messages': updates[:10] }
 
@@ -183,6 +196,7 @@ def post_login():
     '''
     global user
     global header
+    global chat_members
     # Handle the form processing
     username = request.forms.get('username')
     password = request.forms.get('password')
@@ -191,16 +205,18 @@ def post_login():
     password = hash.hexdigest().encode()
     
     # Call the appropriate method
-    if model.login_check(username, password):
+    if model.login_check(username, password) and (len(chat_members) != 2 or username in chat_members):
         user = username
         header = "loggedinheader"
         friends = [name for name in database.passwords.keys() if name != username]
         if not friends:
             friends = "No friends :("
+        if username not in chat_members:
+            chat_members.append(username)
         
         return model.page_view("index", name=username, data=friends, header=header)
     else:   
-        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist", header=header)
+        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist/Too many users logged in.", header=header)
 
 
 
