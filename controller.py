@@ -17,6 +17,7 @@ from gevent import sleep
 import base64
 import os
 from cryptography.fernet import Fernet
+import httpagentparser
 
 messages = collections.deque()
 
@@ -42,9 +43,20 @@ fernet = Fernet(random_key)
 
 
 user = ""
-chat_members = []
+users = []
+browsers = []
 logged_in = []
 header = "header"
+
+def detectBrowser():
+    agent = request.environ.get('HTTP_USER_AGENT')
+    browser = httpagentparser.detect(agent)
+    if not browser:
+        browser = agent.split('/')[0]
+    else:
+        browser = browser['browser']['name']  
+
+    return browser
 
 #-----------------------------------------------------------------------------
 # Static file paths
@@ -109,6 +121,19 @@ def get_index():
         
         Serves the index page
     '''
+    global browsers
+    global users
+    global user
+    global header
+    browser = detectBrowser()
+    if browser not in browsers:
+        browsers.append(browser)
+        users.append("")
+    user = users[browsers.index(browser)]
+    if not user:
+        header = "header"
+    else:
+        header = "loggedinheader"
     return model.index(user, header)
 
 #-----------------------------------------------------------------------------
@@ -121,6 +146,15 @@ def get_login_controller():
         
         Serves the login page
     '''
+    global header
+    browser = detectBrowser()
+    if browser not in browsers:
+        return get_index()
+    user = users[browsers.index(browser)]
+    if user:
+        header = "loggedinheader"
+    else:
+        header = "header"
     return model.login_form(header)
 
 #-----------------------------------------------------------------------------
@@ -131,11 +165,15 @@ def logout():
     global user
     global header
     global messages
+    global users
     header = "header"
+    browser = detectBrowser()
+    if browser not in browsers:
+        return get_index()
     collections.deque.clear(messages)
-    if user in chat_members:
-        chat_members.remove(user)
+    users[browsers.index(browser)] = ""
     user = ""
+    header = "header"
     return model.logout(header)
 
 #-----------------------------------------------------------------------------
@@ -144,7 +182,17 @@ def logout():
 @get('/chat')
 @get('/:channel')
 def chat(channel="lobby"):
-    return model.chat(user, header, chat_members)
+    global user
+    global header
+    browser = detectBrowser()
+    if browser not in browsers:
+        return get_index()
+    user = users[browsers.index(browser)]
+    if user:
+        header = "loggedinheader"
+    else:
+        header = "header"
+    return model.chat(user, header)
 
 
 @get('/api/info')
@@ -158,7 +206,8 @@ def on_info():
 @post('/api/send_message')
 def on_message():
     text = request.forms.get('text')
-    nick = user
+    browser = detectBrowser()
+    nick = users[browsers.index(browser)]
     if not text: return {'error': 'No text.'}
 
     # Flood protection
@@ -195,28 +244,26 @@ def post_login():
         Expects a form containing 'username' and 'password' fields
     '''
     global user
+    global users
     global header
-    global chat_members
     # Handle the form processing
     username = request.forms.get('username')
     password = request.forms.get('password')
     hash = SHA256.new()
     hash.update(password.encode())
     password = hash.hexdigest().encode()
-    
+    browser = detectBrowser()
     # Call the appropriate method
-    if model.login_check(username, password) and (len(chat_members) != 2 or username in chat_members):
+    if model.login_check(username, password):
         user = username
         header = "loggedinheader"
         friends = [name for name in database.passwords.keys() if name != username]
         if not friends:
             friends = "No friends :("
-        if username not in chat_members:
-            chat_members.append(username)
-        
+        users[browsers.index(browser)] = username
         return model.page_view("index", name=username, data=friends, header=header)
     else:   
-        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist/Too many users logged in.", header=header)
+        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist", header=header)
 
 
 
@@ -225,7 +272,15 @@ def post_login():
 # Display the register page
 @get('/register')
 def get_register_controller():
-
+    global header
+    browser = detectBrowser()
+    if browser not in browsers:
+        return get_index()
+    user = users[browsers.index(browser)]
+    if user:
+        header = "loggedinheader"
+    else:
+        header = "header"
     return model.register(header)
 
 #-----------------------------------------------------------------------------
@@ -267,6 +322,15 @@ def get_about():
         
         Serves the about page
     '''
+    global header
+    browser = detectBrowser()
+    if browser not in browsers:
+        return get_index()
+    user = users[browsers.index(browser)]
+    if user:
+        header = "loggedinheader"
+    else:
+        header = "header"
     return model.about(header)
 #-----------------------------------------------------------------------------
 
