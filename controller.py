@@ -5,17 +5,12 @@
 '''
 import gevent.monkey
 gevent.monkey.patch_all()
-import bottle
-from bottle import route, get, post, error, request, static_file, run
+from bottle import route, get, post, error, request, static_file
 from Crypto.Hash import SHA256
-from Crypto.Cipher import AES
 import model
 from no_sql_db import database
 import collections
 from time import time
-from gevent import sleep
-import base64
-import os
 from cryptography.fernet import Fernet
 import httpagentparser
 
@@ -23,7 +18,6 @@ messages = collections.deque()
 
 MESSAGE_TIMEOUT = 10
 FLOOD_MESSAGES = 5
-FETCH_FREQ = 1000
 
 class Message(object):
     def __init__(self, nick, text):
@@ -37,7 +31,7 @@ class Message(object):
 js = '''
 
 '''
-
+#Symmetric key generated everytime server is opened, refreshes/new key is generated everytime a chat room is cleared/refreshed
 random_key = Fernet.generate_key()
 fernet = Fernet(random_key)
 
@@ -48,6 +42,7 @@ browsers = []
 logged_in = []
 header = "header"
 
+#Browser detection for simultaneous logins from different browsers
 def detectBrowser():
     agent = request.environ.get('HTTP_USER_AGENT')
     browser = httpagentparser.detect(agent)
@@ -125,10 +120,12 @@ def get_index():
     global users
     global user
     global header
+    #Check for access from different browser
     browser = detectBrowser()
     if browser not in browsers:
         browsers.append(browser)
         users.append("")
+    #Get corresponding user from browser
     user = users[browsers.index(browser)]
     if not user:
         header = "header"
@@ -166,11 +163,16 @@ def logout():
     global header
     global messages
     global users
+    global random_key
+    global fernet
     header = "header"
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
+    #Clear chat history on logout and regenerate a symmetric key
     collections.deque.clear(messages)
+    random_key = Fernet.generate_key()
+    fernet = Fernet(random_key)   
     users[browsers.index(browser)] = ""
     user = ""
     header = "header"
@@ -202,7 +204,7 @@ def on_info():
         'server_time': time(),
         'refresh_interval': 1000
     }
-    
+
 @post('/api/send_message')
 def on_message():
     text = request.forms.get('text')

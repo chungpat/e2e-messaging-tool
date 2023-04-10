@@ -36,7 +36,7 @@ host = '0.0.0.0'
 localhost = '127.0.0.1'
 
 # Test port, change to the appropriate port to host
-port = 8004
+port = 8002
 
 # Turn this off for production
 debug = True

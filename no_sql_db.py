@@ -45,7 +45,10 @@ class DB():
         return True if hash.hexdigest() == self.passwords[user] else False
         
     def add_user(self, user, password):
-        gen_salt = bcrypt.gensalt()
+        while True: 
+            gen_salt = bcrypt.gensalt()
+            if gen_salt not in self.salt.values():
+                break
         self.salt[user] = gen_salt
         hash = SHA256.new()
         hash.update((gen_salt + password))

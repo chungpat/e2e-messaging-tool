@@ -16,6 +16,7 @@ Chat = function() {
   this.last_message = 0.0
 }
 
+//Setup page
 Chat.prototype.setup = function() {
   var self = this
   jQuery.ajax({
@@ -27,6 +28,7 @@ Chat.prototype.setup = function() {
     }
   })
   
+  //Call python function which handles getting message, encryption and managing message history
   this.form.submit(function(e){
     var data = self.form.serialize()
     e.preventDefault();
@@ -44,6 +46,7 @@ Chat.prototype.setup = function() {
   })
 }
 
+//Call python function to get message history
 Chat.prototype.tick = function() {
   var self = this
   jQuery.ajax({url: 'api/fetch', dataType: 'json', data: {since:this.last_message},
@@ -56,6 +59,7 @@ Chat.prototype.tick = function() {
   })
 }
 
+//Display chat window
 Chat.prototype.append_node = function(node) {
   var dom = this.window[0];
   var pos = dom.scrollTop;
@@ -71,6 +75,7 @@ Chat.prototype.append_node = function(node) {
   }, 50)
 }
 
+//Get approx timestamp
 Chat.prototype.append_timestamp = function(date) {
   date.setMilliseconds(0)
   date.setSeconds(0)
@@ -80,6 +85,7 @@ Chat.prototype.append_timestamp = function(date) {
   this.append_node(node)
 }
 
+//Display message in chat window
 Chat.prototype.append_message = function(msg) {
   if(msg.time <= this.last_message) return
   if (Math.floor(this.last_message/60/15) < Math.floor(msg.time/60/15)) {
