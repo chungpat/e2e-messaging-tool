@@ -47,7 +47,7 @@ def run_server():
         Runs a bottle server
     '''
     # run(host=host, port=port, debug=debug)
-    run(host=host, port=port, debug=debug, server='gunicorn', certfile='./certs/info2222.project.crt', keyfile='./certs/info2222.project.key')
+    run(host=localhost, port=port, debug=debug, server='gunicorn', certfile='./certs/info2222.project.crt', keyfile='./certs/info2222.project.key')
 
 
 #-----------------------------------------------------------------------------
