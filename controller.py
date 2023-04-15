@@ -14,6 +14,11 @@ from time import time
 from cryptography.fernet import Fernet
 import httpagentparser
 
+'''
+MULTIPLE LOGIN SESSIONS BY ACCESSING SERVER FROM DIFFERENT BROWSERS (i.e chrome, firefox, safari)
+note: all chromium based browsers will be treated as being accesssed from the same browser
+'''
+
 messages = collections.deque()
 
 MESSAGE_TIMEOUT = 10
@@ -165,7 +170,6 @@ def logout():
     global users
     global random_key
     global fernet
-    header = "header"
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
@@ -179,7 +183,6 @@ def logout():
     return model.logout(header)
 
 #-----------------------------------------------------------------------------
-
 #Chat
 @get('/chat')
 @get('/:channel')
@@ -196,7 +199,9 @@ def chat(channel="lobby"):
         header = "header"
     return model.chat(user, header)
 
-
+'''
+All functions here called from javascript for messaging features
+'''
 @get('/api/info')
 def on_info():
     return {
