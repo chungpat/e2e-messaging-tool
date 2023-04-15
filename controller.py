@@ -39,7 +39,6 @@ fernet = Fernet(random_key)
 user = ""
 users = []
 browsers = []
-logged_in = []
 header = "header"
 
 #Browser detection for simultaneous logins from different browsers
@@ -144,6 +143,7 @@ def get_login_controller():
         Serves the login page
     '''
     global header
+    global user
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
@@ -275,6 +275,7 @@ def post_login():
 @get('/register')
 def get_register_controller():
     global header
+    global user
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
@@ -325,6 +326,7 @@ def get_about():
         Serves the about page
     '''
     global header
+    global user
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
