@@ -36,7 +36,7 @@ host = '0.0.0.0'
 localhost = '127.0.0.1'
 
 # Test port, change to the appropriate port to host
-port = 8003
+port = 8002
 
 # Turn this off for production
 debug = True
@@ -47,7 +47,7 @@ def run_server():
         Runs a bottle server
     '''
     # run(host=host, port=port, debug=debug)
-    run(host=localhost, port=port, debug=debug, server='gunicorn', certfile='./certs/info2222.project.crt', keyfile='./certs/info2222.project.key')
+    run(host=host, port=port, debug=debug, server='gunicorn', certfile='./certs/info2222.project.crt', keyfile='./certs/info2222.project.key')
 
 
 #-----------------------------------------------------------------------------
