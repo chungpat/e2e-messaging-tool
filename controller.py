@@ -11,7 +11,6 @@ import model
 from no_sql_db import database
 import collections
 from time import time
-from cryptography.fernet import Fernet
 import httpagentparser
 
 '''
@@ -36,9 +35,6 @@ class Message(object):
 js = '''
 
 '''
-#Symmetric key generated everytime server is opened, refreshes/new key is generated everytime a chat room is cleared/refreshed
-random_key = Fernet.generate_key()
-fernet = Fernet(random_key)
 
 
 user = ""
@@ -168,15 +164,11 @@ def logout():
     global header
     global messages
     global users
-    global random_key
-    global fernet
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
-    #Clear chat history on logout and regenerate a symmetric key
+    #Clear chat history on logout
     collections.deque.clear(messages)
-    random_key = Fernet.generate_key()
-    fernet = Fernet(random_key)   
     users[browsers.index(browser)] = ""
     user = ""
     header = "header"
@@ -220,24 +212,15 @@ def on_message():
     # Flood protection
     if len([m for m in messages if m.nick == nick]) > FLOOD_MESSAGES:
         return {'error': 'Messages arrive too fast.'}
-    text = fernet.encrypt(text.encode())
     messages.append(Message(nick, text))
     return {'status': 'OK'}
 
 @get('/api/fetch')
 def on_fetch():
-    ''' Return all messages of the last ten seconds. '''
-    since = float(request.params.get('since', 0))
+    ''' Return all messages '''
     # Fetch new messages
-    temp = []
-    for m in messages:
-        text = fernet.decrypt(m.text).decode()
-        message = Message(m.nick, text)
-        message.time = m.time
-        temp.append(message)
-    updates = [m.json() for m in temp if m.time > since]
-    # Send up to 10 messages at once.
-    return { 'messages': updates[:10] }
+    updates = [m.json() for m in messages]
+    return { 'messages': updates }
 
 #-----------------------------------------------------------------------------
 

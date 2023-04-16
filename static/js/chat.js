@@ -1,5 +1,6 @@
 var last_message = 0
 var update_speed = 1000
+key = "secret_key"
 
 Message = function(data) {
   this.nick = data.nick
@@ -28,13 +29,16 @@ Chat.prototype.setup = function() {
     }
   })
   
-  //Call python function which handles getting message, encryption and managing message history
   this.form.submit(function(e){
-    var data = self.form.serialize()
+    var text = $('input[name=text]').val()
+    var encrypted = CryptoJS.AES.encrypt(text, key).toString();
+    var formData = {
+      'text': encrypted
+  };
     e.preventDefault();
     if(!self.form.find('input[name=text]').val()) return
     jQuery.ajax({
-      url: '/api/send_message', dataType: 'json', type: 'POST', data: data,
+      url: '/api/send_message', dataType: 'json', type: 'POST', data: formData,
       success: function(data){
         if(data.error) {
           self.on_error(data)
@@ -94,6 +98,7 @@ Chat.prototype.append_message = function(msg) {
   }
   this.last_message = msg.time
   var node = jQuery('#tpl_message').clone().attr('id', '')
+  msg.text = CryptoJS.AES.decrypt(msg.text, key).toString(CryptoJS.enc.Utf8);
   node.find('.nick').text(msg.nick)
   node.find('.text').text(msg.text)
   this.append_node(node)
