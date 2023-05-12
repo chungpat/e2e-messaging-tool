@@ -40,10 +40,12 @@ js = '''
 '''
 
 class Document(object):
-    def __init__(self, name, password, owner):
+    def __init__(self, name, password, owner, category, path):
         self.password = password
         self.name = name
         self.owner = owner
+        self.category = category
+        self.path = path
 
 user = ""
 users = []
@@ -185,13 +187,16 @@ def upload():
     document_password = request.forms.get('documentPassword')
     document_category = request.forms.get('documentCategory')
     document_file = request.files.get('documentFile')
-    documents.append(Document(document_name, document_password, user))
     if not document_file:
         return {'message': 'No document provided'}
     path = f"./uploads/{document_category}/"
     if os.path.isfile(path + document_file.filename):
         return {'message': 'Document already exists'}
+    for doc in documents:
+        if doc.name == document_name and doc.category == document_category:
+            return {'message': 'Document already exists'}
     document_file.save(path + document_file.filename)
+    documents.append(Document(document_name, document_password, user, document_category, path + document_file.filename))
     with open("documents.pkl", "wb") as f:
         pickle.dump(documents, f)
     return {'message': 'Document uploaded successfully'}
@@ -235,6 +240,7 @@ def delete_post():
     # Handle the form processing
     username = request.forms.get('username')
     filename = request.forms.get('filename')
+    category = request.forms.get('documentCategory')
     mute = request.forms.get('mute')
     clear = request.forms.get('clear')
     if clear:
@@ -255,6 +261,18 @@ def delete_post():
                 return model.page_view("delete", header=header, reason=f"Successfully muted {mute}!")
             else:
                 return model.page_view("delete", header=header, reason="Failed to mute user (May not exist)")
+    if filename:
+        if not category:
+            return model.page_view("delete", header=header, reason="Specify a category when deleting a file")
+        global documents
+        for doc in documents:
+            if doc.name == filename and doc.category == category:
+                documents.remove(doc)
+                os.remove(doc.path)
+                with open("documents.pkl", "wb") as f:
+                    pickle.dump(documents, f)
+            return model.page_view("delete", header=header, reason=f"Deleted {filename} in {category}.")
+        return model.page_view("delete", header=header, reason="File does not exit")
     return model.page_view("delete", header=header, reason="")
 
 #-----------------------------------------------------------------------------
