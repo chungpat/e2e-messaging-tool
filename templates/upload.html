@@ -1,0 +1,73 @@
+<head>
+    <link href="css/temp.css" rel="stylesheet">
+    <link href="css/usability.css" rel="stylesheet">
+    <script src="js/script_head.js"></script>
+    <script src='js/jquery-3.6.4.min.js'></script>
+    </head>
+    
+    <p>
+    <ul>
+      <li><a class="active" href="/home">Home</a></li>
+        <div class="dropdown">
+          <button class="dropbtn">Account</button>
+          <div class="dropdown-content">
+            <a href="/register">Register</a>
+            <a href="/logout">Logout</a>
+          </div>
+        </div>
+        <li><a href="/upload">Upload</a></li>
+        <div class="dropdown">
+          <button class="dropbtn">Documents</button>
+          <div class="dropdown-content">
+            <a href="/lectures">Lecture Notes</a>
+            <a href="/tutorials">Tutorial Content</a>
+            <a href="/assignments">Assignment Work</a>
+            <a href="/others">Other</a>
+          </div>
+        </div>
+      <li><a href="/chat">Chat</a></li>
+    </ul>
+    </p>
+</head>
+<body>
+    <h1>Document Upload</h1>
+    <form id="uploadForm" enctype="multipart/form-data">
+      <input type="text" name="documentName" placeholder="Document Name" required><br><br>
+      <input type="password" name="documentPassword" placeholder="Password" required><br><br>
+      <select name="documentCategory" required>
+        <option value="" disabled selected>Select a Category</option>
+        <option value="lecture">Lecture Slides</option>
+        <option value="tutorial">Tutorial Content</option>
+        <option value="assignment">Assignment Work</option>
+        <option value="other">Other</option>
+      </select>
+      <br><br>
+      <input type="file" name="documentFile" id="documentInput" required><br><br>
+      <button type="submit">Upload</button>
+    </form>
+  
+    <div id="message"></div>
+  
+    <script>
+      $(document).ready(function() {
+        $('#uploadForm').submit(function(e) {
+          e.preventDefault();
+          var formData = new FormData(this);
+  
+          $.ajax({
+            url: '/upload',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(data) {
+              $('#message').text(data.message);
+            },
+            error: function(xhr, status, error) {
+              $('#message').text('Error: ' + error);
+            }
+          });
+        });
+      });
+    </script>
+  </body>

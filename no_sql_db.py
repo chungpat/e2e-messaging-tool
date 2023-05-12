@@ -22,6 +22,7 @@ class DB():
     def __init__(self):
         self.passwords = {}
         self.salt = {}
+        self.load()
 
     def save_tables(self):
         with open(pass_table, "wb") as f:
@@ -53,11 +54,22 @@ class DB():
         hash = SHA256.new()
         hash.update((gen_salt + password))
         self.passwords[user] = hash.hexdigest()
+        self.save_tables()
         
     def exists(self, user):
         if user in self.passwords.keys():
             return True
         return False
+    
+    def delete_user(self, user):
+        if user not in self.passwords.keys():
+            return False
+        if user == "admin":
+            return False
+        del self.passwords[user]
+        del self.salt[user]
+        self.save_tables()
+        return True
         
 
 # Our global database

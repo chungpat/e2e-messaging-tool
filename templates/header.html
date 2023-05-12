@@ -1,22 +1,37 @@
 <head>
-<link rel="stylesheet" type="text/css" href="css/temp.css">
+<link href="css/temp.css" rel="stylesheet">
+<link href="css/usability.css" rel="stylesheet">
 <script src="js/script_head.js"></script>
 
-<title>Simple Student Templating Solutions</title>
+<title>INFO2222 HUB</title>
 </head>
 
 <p>
 <ul>
   <li><a class="active" href="/home">Home</a></li>
-  <li><a href="/login">Login</a></li>
-  <li><a href="/register">Register</a></li>
-  <li><a href="/about">About</a></li>
+    <div class="dropdown">
+      <button class="dropbtn">Account</button>
+      <div class="dropdown-content">
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+      </div>
+    </div>
+  <li><a href="/upload">Upload</a></li>
+    <div class="dropdown">
+      <button class="dropbtn">Documents</button>
+      <div class="dropdown-content">
+        <a href="/lectures">Lecture Notes</a>
+        <a href="/tutorials">Tutorial Content</a>
+        <a href="/assignments">Assignment Work</a>
+        <a href="/others">Other</a>
+      </div>
+    </div>
 </ul>
 </p>
-<center><h2>Simple Student Templating Solutions</h2>
+<center><h2>INFO2222 HUB</h2>
 
 
-<h3><i>Because the usability is more important than the back end for now.</i></h3>
+<h3><i>A place for all INFO2222 students to connect!</i></h3>
 
 <p>
 <img src="img/header.jpg" alt="Some stuff that popped out of tensor flow" height="80%">

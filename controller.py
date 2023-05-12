@@ -11,6 +11,8 @@ import model
 from no_sql_db import database
 import collections
 from time import time
+import os
+import pickle
 import httpagentparser
 
 '''
@@ -19,6 +21,7 @@ note: all chromium based browsers will be treated as being accesssed from the sa
 '''
 
 messages = collections.deque()
+muted = []
 
 MESSAGE_TIMEOUT = 10
 FLOOD_MESSAGES = 5
@@ -36,11 +39,21 @@ js = '''
 
 '''
 
+class Document(object):
+    def __init__(self, name, password, owner):
+        self.password = password
+        self.name = name
+        self.owner = owner
 
 user = ""
 users = []
 browsers = []
 header = "header"
+documents = []
+if os.path.isfile("documents.pkl"):
+    with open("documents.pkl", "rb") as f:
+        documents = pickle.load(f)
+    
 
 #Browser detection for simultaneous logins from different browsers
 def detectBrowser():
@@ -53,6 +66,18 @@ def detectBrowser():
 
     return browser
 
+def check():
+    global header
+    global user
+    browser = detectBrowser()
+    if browser not in browsers:
+        return 1
+    user = users[browsers.index(browser)]
+    if user:
+        header = "loggedinheader"
+    else:
+        header = "header"
+    return 0
 #-----------------------------------------------------------------------------
 # Static file paths
 #-----------------------------------------------------------------------------
@@ -143,20 +168,49 @@ def get_login_controller():
         
         Serves the login page
     '''
-    global header
-    global user
-    browser = detectBrowser()
-    if browser not in browsers:
-        return get_index()
-    user = users[browsers.index(browser)]
-    if user:
-        header = "loggedinheader"
-    else:
-        header = "header"
-    return model.login_form(header)
+    
+    return get_index() if check() else model.login_form(header)
 
 #-----------------------------------------------------------------------------
 
+@get('/upload')
+def upload():
+    return get_index() if check() else model.upload(user=user, header=header)
+
+# Handle POST request to upload a document
+@post('/upload')
+def upload():
+    global documents
+    document_name = request.forms.get('documentName')
+    document_password = request.forms.get('documentPassword')
+    document_category = request.forms.get('documentCategory')
+    document_file = request.files.get('documentFile')
+    documents.append(Document(document_name, document_password, user))
+    if not document_file:
+        return {'message': 'No document provided'}
+    path = f"./uploads/{document_category}/"
+    if os.path.isfile(path + document_file.filename):
+        return {'message': 'Document already exists'}
+    document_file.save(path + document_file.filename)
+    with open("documents.pkl", "wb") as f:
+        pickle.dump(documents, f)
+    return {'message': 'Document uploaded successfully'}
+
+@get('/lectures')
+def lecture():
+    return get_index() if check() else model.lectures()
+
+@get('/tutorials')
+def tutorial():
+    return get_index() if check() else model.tutorials()
+
+@get('/assignments')
+def assignment():
+    return get_index() if check() else model.assignments()
+
+@get('/other')
+def other():
+    return get_index() if check() else model.others()
 
 @get('/logout')
 def logout():
@@ -167,29 +221,48 @@ def logout():
     browser = detectBrowser()
     if browser not in browsers:
         return get_index()
-    #Clear chat history on logout
-    collections.deque.clear(messages)
     users[browsers.index(browser)] = ""
     user = ""
     header = "header"
     return model.logout(header)
+
+@get('/delete')
+def delete():
+    return get_index() if check() else model.delete(user=user, header=header)
+
+@post('/delete')
+def delete_post():
+    # Handle the form processing
+    username = request.forms.get('username')
+    filename = request.forms.get('filename')
+    mute = request.forms.get('mute')
+    clear = request.forms.get('clear')
+    if clear:
+        if clear == "CONFIRM":
+            #Clear chat history on logout
+            collections.deque.clear(messages)
+            return model.page_view("delete", header=header, reason="Successfully cleared chat!")
+        else:
+            return model.page_view("delete", header=header, reason="Wrong phrase to clear chat!")
+    if username:
+        if not database.delete_user(username):
+            return model.page_view("delete", header=header, reason="Failed to delete user (May not exist)")
+        return model.page_view("delete", header=header, reason=f"Successfully deleted {username}!")
+    if mute:
+        if mute in database.passwords.keys():
+            if mute != "admin":
+                muted.append(mute)
+                return model.page_view("delete", header=header, reason=f"Successfully muted {mute}!")
+            else:
+                return model.page_view("delete", header=header, reason="Failed to mute user (May not exist)")
+    return model.page_view("delete", header=header, reason="")
 
 #-----------------------------------------------------------------------------
 #Chat
 @get('/chat')
 @get('/:channel')
 def chat(channel="lobby"):
-    global user
-    global header
-    browser = detectBrowser()
-    if browser not in browsers:
-        return get_index()
-    user = users[browsers.index(browser)]
-    if user:
-        header = "loggedinheader"
-    else:
-        header = "header"
-    return model.chat(user, header)
+    return get_index() if check() else model.chat(user, header)
 
 '''
 All functions here called from javascript for messaging features
@@ -212,7 +285,8 @@ def on_message():
     # Flood protection
     if len([m for m in messages if m.nick == nick]) > FLOOD_MESSAGES:
         return {'error': 'Messages arrive too fast.'}
-    messages.append(Message(nick, text))
+    if nick not in muted:
+        messages.append(Message(nick, text))
     return {'status': 'OK'}
 
 @get('/api/fetch')
@@ -253,7 +327,7 @@ def post_login():
         users[browsers.index(browser)] = username
         return model.page_view("index", name=username, data=friends, header=header)
     else:   
-        return model.page_view("invalid", reason="Invalid username or password/User doesn't exist", header=header)
+        return model.page_view("reason", reason="Invalid username or password/User doesn't exist", header=header)
 
 
 
@@ -272,7 +346,7 @@ def get_register_controller():
         header = "loggedinheader"
     else:
         header = "header"
-    return model.register(header)
+    return get_index() if check() else model.register(header)
 
 #-----------------------------------------------------------------------------
 
@@ -304,26 +378,6 @@ def post_register():
     return model.register_check(username, password, password_c, length, upper, num, special, header)
 
 
-#-----------------------------------------------------------------------------
-
-@get('/about')
-def get_about():
-    '''
-        get_about
-        
-        Serves the about page
-    '''
-    global header
-    global user
-    browser = detectBrowser()
-    if browser not in browsers:
-        return get_index()
-    user = users[browsers.index(browser)]
-    if user:
-        header = "loggedinheader"
-    else:
-        header = "header"
-    return model.about(header)
 #-----------------------------------------------------------------------------
 
 # Help with debugging

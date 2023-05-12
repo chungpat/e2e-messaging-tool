@@ -21,14 +21,14 @@ def index(username, header):
         index
         Returns the view for the index
     '''
-    friends = []
     if (not username):
         username = "User"
-    else:
-        friends = [name for name in database.passwords.keys() if name != username]
-    if not friends:
-        friends = "No Friends :("
-    return page_view("index", name=username, data=friends, header=header)
+    users = [name for name in database.passwords.keys() if name != username]
+    if "admin" in users:
+        users.remove("admin")
+    if not users:
+        users = "No users"
+    return page_view("index", name=username, data=users, header=header)
 
 #-----------------------------------------------------------------------------
 # Login
@@ -61,6 +61,38 @@ def chat(user, header):
         return page_view("login", header=header)
     else:
         return page_view("chat", header=header)
+
+#-----------------------------------------------------------------------------
+# Upload
+#-----------------------------------------------------------------------------
+def upload(user, header):
+    if not user:
+        return page_view("login", header=header)
+    return page_view.load_template("upload")
+
+#-----------------------------------------------------------------------------
+# Delete
+#-----------------------------------------------------------------------------
+def delete(user, header):
+    if (user != "admin"):
+        return index(username=user, header=header)
+    return page_view("delete", header=header, reason="")
+
+#-----------------------------------------------------------------------------
+# Documents
+#-----------------------------------------------------------------------------
+def lectures():
+    return page_view.load_template("lecture")
+
+def tutorials():
+    return page_view.load_template("tutorial")
+
+def assignments():
+    return page_view.load_template("assignment")
+
+def others():
+    return page_view.load_template("other")
+
 #-----------------------------------------------------------------------------
 # Register
 #-----------------------------------------------------------------------------
