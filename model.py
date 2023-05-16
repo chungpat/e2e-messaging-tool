@@ -23,7 +23,7 @@ def index(username, header):
     '''
     if (not username):
         username = "User"
-    users = [name for name in database.passwords.keys() if name != username]
+    users = [name for name in database.passwords.keys()]
     if "admin" in users:
         users.remove("admin")
     if not users:
@@ -136,32 +136,6 @@ def register_check(username, password, password_c, pass_length, upper, num, spec
 def login_check(username, password):
     database.load()
     return database.user_authenticate(username, password)
-#-----------------------------------------------------------------------------
-# About
-#-----------------------------------------------------------------------------
-
-def about(header):
-    '''
-        about
-        Returns the view for the about page
-    '''
-    return page_view("about", garble=about_garble(), header=header)
-
-
-
-# Returns a random string each time
-def about_garble():
-    '''
-        about_garble
-        Returns one of several strings for the about page
-    '''
-    garble = ["leverage agile frameworks to provide a robust synopsis for high level overviews.", 
-    "iterate approaches to corporate strategy and foster collaborative thinking to further the overall value proposition.",
-    "organically grow the holistic world view of disruptive innovation via workplace change management and empowerment.",
-    "bring to the table win-win survival strategies to ensure proactive and progressive competitive domination.",
-    "ensure the end of the day advancement, a new normal that has evolved from epistemic management approaches and is on the runway towards a streamlined cloud solution.",
-    "provide user generated content in real-time will have multiple touchpoints for offshoring."]
-    return garble[random.randint(0, len(garble) - 1)]
 
 
 #-----------------------------------------------------------------------------
