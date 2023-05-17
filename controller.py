@@ -22,7 +22,7 @@ from classes import Message, Document
 
 host = '0.0.0.0'
 localhost = '127.0.0.1'
-port = 8007
+port = 8008
 debug = True
 
 MESSAGE_TIMEOUT = 10
