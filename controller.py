@@ -3,9 +3,11 @@
     You should not have anything beyond basic page loads, handling forms and 
     maybe some simple program logic
 '''
+import uuid
+import gunicorn
 import gevent.monkey
 gevent.monkey.patch_all()
-from bottle import route, get, post, error, request, static_file
+from bottle import Bottle, run, request, static_file, response, redirect
 from Crypto.Hash import SHA256
 import model
 from no_sql_db import database
@@ -13,79 +15,64 @@ import collections
 from time import time
 import os
 import pickle
-import httpagentparser
+import secrets
+from datetime import datetime
+from beaker.middleware import SessionMiddleware
+from classes import Message, Document
 
-'''
-MULTIPLE LOGIN SESSIONS BY ACCESSING SERVER FROM DIFFERENT BROWSERS (i.e chrome, firefox, safari)
-note: all chromium based browsers will be treated as being accesssed from the same browser
-'''
-
-messages = collections.deque()
-muted = []
+host = '0.0.0.0'
+localhost = '127.0.0.1'
+port = 8008
+debug = True
 
 MESSAGE_TIMEOUT = 10
 FLOOD_MESSAGES = 5
 
-class Message(object):
-    def __init__(self, nick, text):
-        self.time = time()
-        self.nick = nick
-        self.text = text
-
-    def json(self):
-        return {'text': self.text, 'nick': self.nick, 'time': self.time}
-
 js = '''
 
 '''
+app = Bottle()
+validate_key = secrets.token_hex(16) 
+session_opts = {
+    'session.type': 'cookie',
+    'session.cookie_expires': True,
+    'session.auto': True,
+    'session.key': 'myapp_session',
+    'session.validate_key': validate_key
+}
 
-class Document(object):
-    def __init__(self, name, password, owner, category, path):
-        self.password = password
-        self.name = name
-        self.owner = owner
-        self.category = category
-        self.path = path
+session_app = SessionMiddleware(app, session_opts)
 
-user = ""
-users = []
-browsers = []
+
+messages = collections.deque()
+muted = []
 header = "header"
 documents = []
-if os.path.isfile("documents.pkl"):
-    with open("documents.pkl", "rb") as f:
+
+#Loading documents/resources
+if os.path.isfile("./documents.pkl"):
+    with open("./documents.pkl", "rb") as f:
         documents = pickle.load(f)
-    
 
-#Browser detection for simultaneous logins from different browsers
-def detectBrowser():
-    agent = request.environ.get('HTTP_USER_AGENT')
-    browser = httpagentparser.detect(agent)
-    if not browser:
-        browser = agent.split('/')[0]
-    else:
-        browser = browser['browser']['name']  
-
-    return browser
-
-def check():
+#Function to manage user sessions
+def verify():
     global header
-    global user
-    browser = detectBrowser()
-    if browser not in browsers:
-        return 1
-    user = users[browsers.index(browser)]
-    if user:
-        header = "loggedinheader"
-    else:
-        header = "header"
-    return 0
+    session = request.environ.get('beaker.session')
+    username = ""
+    if session is not None and session == request.environ.get('beaker.session'):
+        username = session.get('username')
+        if username:
+            header = "loggedinheader"
+        else:
+            header = "header"
+    return username
+
 #-----------------------------------------------------------------------------
 # Static file paths
 #-----------------------------------------------------------------------------
 
 # Allow image loading
-@route('/img/<picture:path>')
+@app.route('/img/<picture:path>')
 def serve_pictures(picture):
     '''
         serve_pictures
@@ -101,7 +88,7 @@ def serve_pictures(picture):
 #-----------------------------------------------------------------------------
 
 # Allow CSS
-@route('/css/<css:path>')
+@app.route('/css/<css:path>')
 def serve_css(css):
     '''
         serve_css
@@ -117,7 +104,7 @@ def serve_css(css):
 #-----------------------------------------------------------------------------
 
 # Allow javascript
-@route('/js/<js:path>')
+@app.route('/js/<js:path>')
 def serve_js(js):
     '''
         serve_js
@@ -134,53 +121,102 @@ def serve_js(js):
 # Pages
 #-----------------------------------------------------------------------------
 
-# Redirect to login
-@get('/')
-@get('/home')
+#Home Page
+@app.get('/')
+@app.get('/home')
 def get_index():
     '''
         get_index
         
         Serves the index page
     '''
-    global browsers
-    global users
-    global user
-    global header
-    #Check for access from different browser
-    browser = detectBrowser()
-    if browser not in browsers:
-        browsers.append(browser)
-        users.append("")
-    #Get corresponding user from browser
-    user = users[browsers.index(browser)]
-    if not user:
-        header = "header"
-    else:
-        header = "loggedinheader"
+    user = verify()
     return model.index(user, header)
 
 #-----------------------------------------------------------------------------
-
-# Display the login page
-@get('/login')
+# Logins
+#-----------------------------------------------------------------------------
+@app.get('/login')
 def get_login_controller():
     '''
         get_login
         
         Serves the login page
     '''
+    return model.login_form(header)
+
+@app.post('/login')
+def post_login():
+    '''
+        post_login
+        
+        Handles login attempts
+        Expects a form containing 'username' and 'password' fields
+    '''
+    global header
+    # Handle the form processing
+    username = request.forms.get('username')
+    password = request.forms.get('password')
+    hash = SHA256.new()
+    hash.update(password.encode())
+    password = hash.hexdigest().encode()
+    # Call the appropriate method
+    if model.login_check(username, password):
+        session = request.environ.get('beaker.session')
+        session_id = str(uuid.uuid4())
+        session['session_id'] = session_id
+        session['username'] = username
+        session.save()
+        return redirect('/home')
+    else:   
+        return model.page_view("/account/login", error_msg="Invalid username or password.", header=header)
     
-    return get_index() if check() else model.login_form(header)
+@app.get('/logout')
+def logout():
+    global header
+    session = request.environ.get('beaker.session')
+    
+    if 'session_id' in session:
+        session.delete()
+        header = "header"
+    return redirect('/login')
 
 #-----------------------------------------------------------------------------
+# Register
+#-----------------------------------------------------------------------------
+@app.get('/register')
+def get_register_controller():
+    user = verify()
+    return model.register(header)
 
-@get('/upload')
+@app.post('/register')
+def post_register():
+    username = request.forms.get('username')
+    password = request.forms.get('password')
+    password_c = request.forms.get('password_confirm')
+    upper = any(c.isupper() for c in password)
+    special = any(not c.isalnum() and c != ' ' for c in password)
+    num = any(c.isnumeric() for c in password)
+    length = len(password)
+    hash = SHA256.new()
+    hash.update(password.encode())
+    password = hash.hexdigest().encode()
+    hash = SHA256.new()
+    hash.update(password_c.encode())
+    password_c = hash.hexdigest().encode()
+    
+    return model.register_check(username, password, password_c, length, upper, num, special, header)
+
+#-----------------------------------------------------------------------------
+# Upload feature
+#-----------------------------------------------------------------------------
+
+@app.get('/upload')
 def upload():
-    return get_index() if check() else model.upload(user=user, header=header)
+    user = verify()
+    return model.upload(user, header)
 
-# Handle POST request to upload a document
-@post('/upload')
+@app.post('/upload')
 def upload():
     global documents
     document_name = request.forms.get('documentName')
@@ -189,53 +225,90 @@ def upload():
     document_file = request.files.get('documentFile')
     if not document_file:
         return {'message': 'No document provided'}
-    path = f"./uploads/{document_category}/"
-    if os.path.isfile(path + document_file.filename):
+    path = f"./uploads/{document_category}/{document_file.filename}"
+    if os.path.isfile(path):
         return {'message': 'Document already exists'}
     for doc in documents:
         if doc.name == document_name and doc.category == document_category:
             return {'message': 'Document already exists'}
-    document_file.save(path + document_file.filename)
-    documents.append(Document(document_name, document_password, user, document_category, path + document_file.filename))
+    document_file.save(path)
+    documents.append(Document(document_name, document_password, verify(), document_category, path, round(os.stat(path).st_size / (1024 * 1024), 2), os.path.splitext(path)[1], datetime.today().strftime('%Y-%m-%d')))
     with open("documents.pkl", "wb") as f:
         pickle.dump(documents, f)
     return {'message': 'Document uploaded successfully'}
 
-@get('/lectures')
-def lecture():
-    return get_index() if check() else model.lectures()
+#-----------------------------------------------------------------------------
+# Document features (download and filter/sort)
+#-----------------------------------------------------------------------------
 
-@get('/tutorials')
+@app.get('/documents')
+def get_filtered_documents():
+    search_term = request.query.get('search')
+    sort_option = request.query.get('sort')
+    password_filter = request.query.get('password')
+    category = request.query.get('category')
+    
+    filtered_documents = documents
+    if category:
+        filtered_documents = [doc for doc in filtered_documents if doc.category == category]
+        
+    if search_term:
+        filtered_documents = [doc for doc in filtered_documents if search_term.lower() in doc.name.lower()]
+
+    if sort_option == 'name':
+        filtered_documents = sorted(filtered_documents, key=lambda doc: doc.name)
+    elif sort_option == 'date':
+        filtered_documents = sorted(filtered_documents, key=lambda doc: datetime.strptime(doc.date, '%Y-%m-%d'), reverse=True)
+
+    if password_filter == 'password':
+        filtered_documents = [doc for doc in filtered_documents if doc.password]
+    elif password_filter == 'no-password':
+        filtered_documents = [doc for doc in filtered_documents if not doc.password]
+
+    return {'documents': [doc.__dict__ for doc in filtered_documents]}
+
+@app.post('/download')
+def download_document():
+    document_path = request.forms.get('document_path')
+    password = request.forms.get('password')
+    document = next((doc for doc in documents if doc.path == document_path), None)
+    if document and password == document.password:
+        file_name = os.path.basename(document.path)
+        response.headers['Content-Disposition'] = f'attachment; filename={file_name}'
+        return static_file(file_name, root=os.path.dirname(document.path), download=True)
+    else:
+        response.status = 401
+#-----------------------------------------------------------------------------
+# Get documents/resources pages
+#-----------------------------------------------------------------------------
+
+@app.get('/tutorials')
 def tutorial():
-    return get_index() if check() else model.tutorials()
+    return model.tutorials()
 
-@get('/assignments')
+@app.get('/assignments')
 def assignment():
-    return get_index() if check() else model.assignments()
+    return model.assignments()
 
-@get('/other')
+@app.get('/other')
 def other():
-    return get_index() if check() else model.others()
+    return model.others()
 
-@get('/logout')
-def logout():
-    global user
-    global header
-    global messages
-    global users
-    browser = detectBrowser()
-    if browser not in browsers:
-        return get_index()
-    users[browsers.index(browser)] = ""
-    user = ""
-    header = "header"
-    return model.logout(header)
+@app.get('/lectures')
+def lecture():
+    return model.lectures()
 
-@get('/delete')
+
+#-----------------------------------------------------------------------------
+# Admin actions
+#-----------------------------------------------------------------------------
+
+@app.get('/delete')
 def delete():
-    return get_index() if check() else model.delete(user=user, header=header)
+    user = verify()
+    return model.delete(user, header)
 
-@post('/delete')
+@app.post('/delete')
 def delete_post():
     # Handle the form processing
     username = request.forms.get('username')
@@ -276,16 +349,14 @@ def delete_post():
     return model.page_view("delete", header=header, reason="")
 
 #-----------------------------------------------------------------------------
-#Chat
-@get('/chat')
-@get('/:channel')
+# Chat
+#-----------------------------------------------------------------------------
+@app.get('/chat')
 def chat(channel="lobby"):
-    return get_index() if check() else model.chat(user, header)
+    user = verify()
+    return model.chat(user, header)
 
-'''
-All functions here called from javascript for messaging features
-'''
-@get('/api/info')
+@app.get('/api/info')
 def on_info():
     return {
         'server_name': 'Bottle Test Chat',
@@ -293,11 +364,10 @@ def on_info():
         'refresh_interval': 1000
     }
 
-@post('/api/send_message')
+@app.post('/api/send_message')
 def on_message():
     text = request.forms.get('text')
-    browser = detectBrowser()
-    nick = users[browsers.index(browser)]
+    nick = verify()
     if not text: return {'error': 'No text.'}
 
     # Flood protection
@@ -307,105 +377,14 @@ def on_message():
         messages.append(Message(nick, text))
     return {'status': 'OK'}
 
-@get('/api/fetch')
+@app.get('/api/fetch')
 def on_fetch():
     ''' Return all messages '''
     # Fetch new messages
     updates = [m.json() for m in messages]
     return { 'messages': updates }
 
-#-----------------------------------------------------------------------------
 
-# Attempt the login
-@post('/login')
-def post_login():
-    '''
-        post_login
-        
-        Handles login attempts
-        Expects a form containing 'username' and 'password' fields
-    '''
-    global user
-    global users
-    global header
-    # Handle the form processing
-    username = request.forms.get('username')
-    password = request.forms.get('password')
-    hash = SHA256.new()
-    hash.update(password.encode())
-    password = hash.hexdigest().encode()
-    browser = detectBrowser()
-    # Call the appropriate method
-    if model.login_check(username, password):
-        user = username
-        header = "loggedinheader"
-        friends = [name for name in database.passwords.keys() if name != username]
-        if not friends:
-            friends = "No friends :("
-        users[browsers.index(browser)] = username
-        return model.page_view("index", name=username, data=friends, header=header)
-    else:   
-        return model.page_view("reason", reason="Invalid username or password/User doesn't exist", header=header)
-
-
-
-#-----------------------------------------------------------------------------
-
-# Display the register page
-@get('/register')
-def get_register_controller():
-    global header
-    global user
-    browser = detectBrowser()
-    if browser not in browsers:
-        return get_index()
-    user = users[browsers.index(browser)]
-    if user:
-        header = "loggedinheader"
-    else:
-        header = "header"
-    return get_index() if check() else model.register(header)
-
-#-----------------------------------------------------------------------------
-
-@post('/register')
-def post_register():
-    '''
-        post_login
-        
-        Handles login attempts
-        Expects a form containing 'username' and 'password' fields
-    '''
-
-    # Handle the form processing
-    username = request.forms.get('username')
-    password = request.forms.get('password')
-    password_c = request.forms.get('password_confirm')
-    upper = any(c.isupper() for c in password)
-    special = any(not c.isalnum() and c != ' ' for c in password)
-    num = any(c.isnumeric() for c in password)
-    length = len(password)
-    hash = SHA256.new()
-    hash.update(password.encode())
-    password = hash.hexdigest().encode()
-    hash = SHA256.new()
-    hash.update(password_c.encode())
-    password_c = hash.hexdigest().encode()
-    
-    # Call the appropriate method
-    return model.register_check(username, password, password_c, length, upper, num, special, header)
-
-
-#-----------------------------------------------------------------------------
-
-# Help with debugging
-@post('/debug/<cmd:path>')
-def post_debug(cmd):
-    return model.debug(cmd)
-
-#-----------------------------------------------------------------------------
-
-# 404 errors, use the same trick for other types of errors
-@error(404)
-def error(error): 
-    return model.handle_errors(error)
+# Run the application
+if __name__ == '__main__':
+    run(app=session_app, host=host, port=port, debug=debug, server='gunicorn', certfile='./certs/info2222.project.crt', keyfile='./certs/info2222.project.key')

@@ -6,7 +6,6 @@
     Nothing here should be stateful, if it's stateful let the database handle it
 '''
 import view
-import random
 from no_sql_db import database
 
 # Initialise our views, all arguments are defaults for the template
@@ -23,7 +22,7 @@ def index(username, header):
     '''
     if (not username):
         username = "User"
-    users = [name for name in database.passwords.keys() if name != username]
+    users = [name for name in database.passwords.keys()]
     if "admin" in users:
         users.remove("admin")
     if not users:
@@ -39,7 +38,12 @@ def login_form(header):
         login_form
         Returns the view for the login_form
     '''
-    return page_view("login", header=header)
+    return page_view("/account/login", error_msg="", header=header)
+
+# Check the login credentials
+def login_check(username, password):
+    database.load()
+    return database.user_authenticate(username, password)
 
 #-----------------------------------------------------------------------------
 # Logout
@@ -50,7 +54,7 @@ def logout(header):
         login_form
         Returns the view for the login_form
     '''
-    return page_view("logout", header=header)
+    return page_view("/account/logout", header=header)
 
 #-----------------------------------------------------------------------------
 # Chat
@@ -58,7 +62,7 @@ def logout(header):
 
 def chat(user, header):
     if not user:
-        return page_view("login", header=header)
+        return page_view("/account/login", error_msg="", header=header)
     else:
         return page_view("chat", header=header)
 
@@ -67,7 +71,7 @@ def chat(user, header):
 #-----------------------------------------------------------------------------
 def upload(user, header):
     if not user:
-        return page_view("login", header=header)
+        return page_view("/account/login", error_msg="", header=header)
     return page_view.load_template("upload")
 
 #-----------------------------------------------------------------------------
@@ -82,16 +86,16 @@ def delete(user, header):
 # Documents
 #-----------------------------------------------------------------------------
 def lectures():
-    return page_view.load_template("lecture")
+    return page_view.load_template("/resources/lecture")
 
 def tutorials():
-    return page_view.load_template("tutorial")
+    return page_view.load_template("/resources/tutorial")
 
 def assignments():
-    return page_view.load_template("assignment")
+    return page_view.load_template("/resources/assignment")
 
 def others():
-    return page_view.load_template("other")
+    return page_view.load_template("/resources/other")
 
 #-----------------------------------------------------------------------------
 # Register
@@ -102,19 +106,16 @@ def register(header):
         index
         Returns the view for the index
     '''
-    return page_view("register", header=header)
+    return page_view("/account/register", header=header, error="", success="")
 
 #-----------------------------------------------------------------------------
 
-# Check the login credentials
+# Check the register credentials
 def register_check(username, password, password_c, pass_length, upper, num, special, header):
     database.load()
     register = True
     if password != password_c:
         err_str = "Passwords weren't the same."
-        register = False
-    elif not username:
-        err_str = "Empty username field"
         register = False
     elif pass_length <= 10:
         err_str = "Password is too short."
@@ -128,59 +129,6 @@ def register_check(username, password, password_c, pass_length, upper, num, spec
     if register: 
         database.add_user(username, password)
         database.save_tables()
-        return page_view("register_valid", header=header)
+        return page_view("/account/register", header=header, error="", success="Successfully registered!")
     else:
-        return page_view("register_invalid", reason=err_str, header=header)
-
-# Check the login credentials
-def login_check(username, password):
-    database.load()
-    return database.user_authenticate(username, password)
-#-----------------------------------------------------------------------------
-# About
-#-----------------------------------------------------------------------------
-
-def about(header):
-    '''
-        about
-        Returns the view for the about page
-    '''
-    return page_view("about", garble=about_garble(), header=header)
-
-
-
-# Returns a random string each time
-def about_garble():
-    '''
-        about_garble
-        Returns one of several strings for the about page
-    '''
-    garble = ["leverage agile frameworks to provide a robust synopsis for high level overviews.", 
-    "iterate approaches to corporate strategy and foster collaborative thinking to further the overall value proposition.",
-    "organically grow the holistic world view of disruptive innovation via workplace change management and empowerment.",
-    "bring to the table win-win survival strategies to ensure proactive and progressive competitive domination.",
-    "ensure the end of the day advancement, a new normal that has evolved from epistemic management approaches and is on the runway towards a streamlined cloud solution.",
-    "provide user generated content in real-time will have multiple touchpoints for offshoring."]
-    return garble[random.randint(0, len(garble) - 1)]
-
-
-#-----------------------------------------------------------------------------
-# Debug
-#-----------------------------------------------------------------------------
-
-def debug(cmd):
-    try:
-        return str(eval(cmd))
-    except:
-        pass
-
-
-#-----------------------------------------------------------------------------
-# 404
-# Custom 404 error page
-#-----------------------------------------------------------------------------
-
-def handle_errors(error):
-    error_type = error.status_line
-    error_msg = error.body
-    return page_view("error", error_type=error_type, error_msg=error_msg)
+        return page_view("/account/register", header=header, error=err_str, success="")

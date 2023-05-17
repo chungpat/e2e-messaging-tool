@@ -1,0 +1,23 @@
+
+<html>
+<head>
+    <link href="css/form.css" rel="stylesheet">
+  <title>Login Page</title>
+</head>
+<body>
+  <div class="container">
+    <h1>Login</h1>
+    <form action="/login" method="post">
+      <label for="username">Username:</label>
+      <input type="text" id="username" name="username" required>
+
+      <label for="password">Password: </label>
+      <input type="password" id="password" name="password" required>
+
+      <input type="submit" value="Login">
+    </form>
+    <p id="errorMessage" class="error-message">${error_msg}</p>
+  </div>
+</body>
+</html>
+
