@@ -7,7 +7,7 @@ import uuid
 import gunicorn
 import gevent.monkey
 gevent.monkey.patch_all()
-from bottle import Bottle, run, install, route, get, post, error, request, static_file, response, redirect, default_app
+from bottle import Bottle, run, request, static_file, response, redirect
 from Crypto.Hash import SHA256
 import model
 from no_sql_db import database
@@ -18,6 +18,7 @@ import pickle
 import secrets
 from datetime import datetime
 from beaker.middleware import SessionMiddleware
+from classes import Message, Document
 
 host = '0.0.0.0'
 localhost = '127.0.0.1'
@@ -27,6 +28,9 @@ debug = True
 MESSAGE_TIMEOUT = 10
 FLOOD_MESSAGES = 5
 
+js = '''
+
+'''
 app = Bottle()
 validate_key = secrets.token_hex(16) 
 session_opts = {
@@ -39,38 +43,30 @@ session_opts = {
 
 session_app = SessionMiddleware(app, session_opts)
 
-class Message(object):
-    def __init__(self, nick, text):
-        self.time = time()
-        self.nick = nick
-        self.text = text
 
-    def json(self):
-        return {'text': self.text, 'nick': self.nick, 'time': self.time}
-
-js = '''
-
-'''
-
-class Document(object):
-    def __init__(self, name, password, owner, category, path, size, filetype, date):
-        self.path = path
-        self.password = password
-        self.name = name
-        self.owner = owner
-        self.category = category
-        self.size = size
-        self.filetype = filetype
-        self.date = date
 messages = collections.deque()
 muted = []
 header = "header"
 documents = []
 
-
+#Loading documents/resources
 if os.path.isfile("./documents.pkl"):
     with open("./documents.pkl", "rb") as f:
         documents = pickle.load(f)
+
+#Function to manage user sessions
+def verify():
+    global header
+    session = request.environ.get('beaker.session')
+    username = ""
+    if session is not None and session == request.environ.get('beaker.session'):
+        username = session.get('username')
+        if username:
+            header = "loggedinheader"
+        else:
+            header = "header"
+    return username
+
 #-----------------------------------------------------------------------------
 # Static file paths
 #-----------------------------------------------------------------------------
@@ -124,20 +120,8 @@ def serve_js(js):
 #-----------------------------------------------------------------------------
 # Pages
 #-----------------------------------------------------------------------------
-#Verify a session
-def verify():
-    global header
-    session = request.environ.get('beaker.session')
-    username = ""
-    if session is not None and session == request.environ.get('beaker.session'):
-        username = session.get('username')
-        if username:
-            header = "loggedinheader"
-        else:
-            header = "header"
-    return username
 
-# Redirect to login
+#Home Page
 @app.get('/')
 @app.get('/home')
 def get_index():
@@ -150,8 +134,8 @@ def get_index():
     return model.index(user, header)
 
 #-----------------------------------------------------------------------------
-
-# Display the login page
+# Logins
+#-----------------------------------------------------------------------------
 @app.get('/login')
 def get_login_controller():
     '''
@@ -161,6 +145,70 @@ def get_login_controller():
     '''
     return model.login_form(header)
 
+@app.post('/login')
+def post_login():
+    '''
+        post_login
+        
+        Handles login attempts
+        Expects a form containing 'username' and 'password' fields
+    '''
+    global header
+    # Handle the form processing
+    username = request.forms.get('username')
+    password = request.forms.get('password')
+    hash = SHA256.new()
+    hash.update(password.encode())
+    password = hash.hexdigest().encode()
+    # Call the appropriate method
+    if model.login_check(username, password):
+        session = request.environ.get('beaker.session')
+        session_id = str(uuid.uuid4())
+        session['session_id'] = session_id
+        session['username'] = username
+        session.save()
+        return redirect('/home')
+    else:   
+        return model.page_view("/account/login", error_msg="Invalid username or password.", header=header)
+    
+@app.get('/logout')
+def logout():
+    global header
+    session = request.environ.get('beaker.session')
+    
+    if 'session_id' in session:
+        session.delete()
+        header = "header"
+    return redirect('/login')
+
+#-----------------------------------------------------------------------------
+# Register
+#-----------------------------------------------------------------------------
+@app.get('/register')
+def get_register_controller():
+    user = verify()
+    return model.register(header)
+
+@app.post('/register')
+def post_register():
+    username = request.forms.get('username')
+    password = request.forms.get('password')
+    password_c = request.forms.get('password_confirm')
+    upper = any(c.isupper() for c in password)
+    special = any(not c.isalnum() and c != ' ' for c in password)
+    num = any(c.isnumeric() for c in password)
+    length = len(password)
+    hash = SHA256.new()
+    hash.update(password.encode())
+    password = hash.hexdigest().encode()
+    hash = SHA256.new()
+    hash.update(password_c.encode())
+    password_c = hash.hexdigest().encode()
+    
+    return model.register_check(username, password, password_c, length, upper, num, special, header)
+
+#-----------------------------------------------------------------------------
+# Upload feature
 #-----------------------------------------------------------------------------
 
 @app.get('/upload')
@@ -168,7 +216,6 @@ def upload():
     user = verify()
     return model.upload(user, header)
 
-# Handle POST request to upload a document
 @app.post('/upload')
 def upload():
     global documents
@@ -190,9 +237,9 @@ def upload():
         pickle.dump(documents, f)
     return {'message': 'Document uploaded successfully'}
 
-@app.get('/lectures')
-def lecture():
-    return model.lectures()
+#-----------------------------------------------------------------------------
+# Document features (download and filter/sort)
+#-----------------------------------------------------------------------------
 
 @app.get('/documents')
 def get_filtered_documents():
@@ -231,6 +278,9 @@ def download_document():
         return static_file(file_name, root=os.path.dirname(document.path), download=True)
     else:
         response.status = 401
+#-----------------------------------------------------------------------------
+# Get documents/resources pages
+#-----------------------------------------------------------------------------
 
 @app.get('/tutorials')
 def tutorial():
@@ -244,15 +294,14 @@ def assignment():
 def other():
     return model.others()
 
-@app.get('/logout')
-def logout():
-    global header
-    session = request.environ.get('beaker.session')
-    
-    if 'session_id' in session:
-        session.delete()
-        header = "header"
-    return redirect('/login')
+@app.get('/lectures')
+def lecture():
+    return model.lectures()
+
+
+#-----------------------------------------------------------------------------
+# Admin actions
+#-----------------------------------------------------------------------------
 
 @app.get('/delete')
 def delete():
@@ -300,15 +349,13 @@ def delete_post():
     return model.page_view("delete", header=header, reason="")
 
 #-----------------------------------------------------------------------------
-#Chat
+# Chat
+#-----------------------------------------------------------------------------
 @app.get('/chat')
 def chat(channel="lobby"):
     user = verify()
     return model.chat(user, header)
 
-'''
-All functions here called from javascript for messaging features
-'''
 @app.get('/api/info')
 def on_info():
     return {
@@ -337,88 +384,6 @@ def on_fetch():
     updates = [m.json() for m in messages]
     return { 'messages': updates }
 
-#-----------------------------------------------------------------------------
-
-# Attempt the login
-@app.post('/login')
-def post_login():
-    '''
-        post_login
-        
-        Handles login attempts
-        Expects a form containing 'username' and 'password' fields
-    '''
-    global header
-    # Handle the form processing
-    username = request.forms.get('username')
-    password = request.forms.get('password')
-    hash = SHA256.new()
-    hash.update(password.encode())
-    password = hash.hexdigest().encode()
-    # Call the appropriate method
-    if model.login_check(username, password):
-        session = request.environ.get('beaker.session')
-        session_id = str(uuid.uuid4())
-        session['session_id'] = session_id
-        session['username'] = username
-        session.save()
-        return redirect('/home')
-    else:   
-        return model.page_view("login", error_msg="Invalid username or password.", header=header)
-
-
-
-#-----------------------------------------------------------------------------
-
-# Display the register page
-@app.get('/register')
-def get_register_controller():
-    user = verify()
-    return model.register(header)
-
-#-----------------------------------------------------------------------------
-
-@app.post('/register')
-def post_register():
-    '''
-        post_login
-        
-        Handles login attempts
-        Expects a form containing 'username' and 'password' fields
-    '''
-
-    # Handle the form processing
-    username = request.forms.get('username')
-    password = request.forms.get('password')
-    password_c = request.forms.get('password_confirm')
-    upper = any(c.isupper() for c in password)
-    special = any(not c.isalnum() and c != ' ' for c in password)
-    num = any(c.isnumeric() for c in password)
-    length = len(password)
-    hash = SHA256.new()
-    hash.update(password.encode())
-    password = hash.hexdigest().encode()
-    hash = SHA256.new()
-    hash.update(password_c.encode())
-    password_c = hash.hexdigest().encode()
-    
-    # Call the appropriate method
-    return model.register_check(username, password, password_c, length, upper, num, special, header)
-
-
-#-----------------------------------------------------------------------------
-
-# Help with debugging
-@app.post('/debug/<cmd:path>')
-def post_debug(cmd):
-    return model.debug(cmd)
-
-#-----------------------------------------------------------------------------
-
-# 404 errors, use the same trick for other types of errors
-@app.error(404)
-def error(error): 
-    return model.handle_errors(error)
 
 # Run the application
 if __name__ == '__main__':

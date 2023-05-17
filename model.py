@@ -40,6 +40,11 @@ def login_form(header):
     '''
     return page_view("/account/login", error_msg="", header=header)
 
+# Check the login credentials
+def login_check(username, password):
+    database.load()
+    return database.user_authenticate(username, password)
+
 #-----------------------------------------------------------------------------
 # Logout
 #-----------------------------------------------------------------------------
@@ -105,7 +110,7 @@ def register(header):
 
 #-----------------------------------------------------------------------------
 
-# Check the login credentials
+# Check the register credentials
 def register_check(username, password, password_c, pass_length, upper, num, special, header):
     database.load()
     register = True
@@ -127,8 +132,3 @@ def register_check(username, password, password_c, pass_length, upper, num, spec
         return page_view("/account/register", header=header, error="", success="Successfully registered!")
     else:
         return page_view("/account/register", header=header, error=err_str, success="")
-
-# Check the login credentials
-def login_check(username, password):
-    database.load()
-    return database.user_authenticate(username, password)
