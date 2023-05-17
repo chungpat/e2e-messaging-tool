@@ -113,3 +113,4 @@ jQuery(function(){
   chat = new Chat()
   chat.setup()
 })
+

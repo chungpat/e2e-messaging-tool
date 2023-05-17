@@ -1,13 +1,93 @@
-#chat * {
-    font-family: sans-serif;
-}
-
-#chat .window {
-    padding: 0 0 1px 0;
-}
-
 #chat .timestamp {
     border: 1px solid grey;
     border-width: 0 0 1px 0;
     text-align: right;
+}
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f7f7f7;
+}
+
+#chat {
+    width: 80%;
+    margin: 0 auto;
+}
+
+.window {
+    background-color: #fff;
+    border-radius: 5px;
+    padding: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    overflow: auto;
+    max-height: 300px;
+}
+
+.topic {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.message-container {
+    margin-bottom: 10px;
+}
+
+.message {
+    background-color: #f2f2f2;
+    border-radius: 5px;
+    padding: 5px;
+    margin-bottom: 5px;
+}
+
+.nick {
+    font-weight: bold;
+    color: #333;
+}
+
+.text {
+    color: #333;
+}
+
+form {
+    margin-top: 10px;
+}
+
+label {
+    font-weight: bold;
+}
+
+input[type="text"],
+input[type="password"],
+select {
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+input[type="submit"] {
+    background-color: #4CAF50;
+    color: #fff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+input[type="submit"]:hover {
+    background-color: #45a049;
+}
+
+.user-count {
+    background-color: #f2f2f2;
+    color: #333;
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+#countValue {
+    color: #ff6600;
 }

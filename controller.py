@@ -15,31 +15,26 @@ import collections
 from time import time
 import os
 import pickle
-import httpagentparser
+import secrets
 from datetime import datetime
 from beaker.middleware import SessionMiddleware
 
 host = '0.0.0.0'
 localhost = '127.0.0.1'
-port = 8006
+port = 8007
 debug = True
-
-'''
-MULTIPLE LOGIN SESSIONS BY ACCESSING SERVER FROM DIFFERENT BROWSERS (i.e chrome, firefox, safari)
-note: all chromium based browsers will be treated as being accesssed from the same browser
-'''
 
 MESSAGE_TIMEOUT = 10
 FLOOD_MESSAGES = 5
 
 app = Bottle()
-
+validate_key = secrets.token_hex(16) 
 session_opts = {
     'session.type': 'cookie',
     'session.cookie_expires': True,
     'session.auto': True,
     'session.key': 'myapp_session',
-    'session.validate_key': 'supersecretkey'
+    'session.validate_key': validate_key
 }
 
 session_app = SessionMiddleware(app, session_opts)
@@ -204,9 +199,12 @@ def get_filtered_documents():
     search_term = request.query.get('search')
     sort_option = request.query.get('sort')
     password_filter = request.query.get('password')
+    category = request.query.get('category')
     
     filtered_documents = documents
-
+    if category:
+        filtered_documents = [doc for doc in filtered_documents if doc.category == category]
+        
     if search_term:
         filtered_documents = [doc for doc in filtered_documents if search_term.lower() in doc.name.lower()]
 
@@ -240,11 +238,11 @@ def tutorial():
 
 @app.get('/assignments')
 def assignment():
-    return model.tutorials()
+    return model.assignments()
 
 @app.get('/other')
 def other():
-    return model.tutorials()
+    return model.others()
 
 @app.get('/logout')
 def logout():
@@ -304,7 +302,6 @@ def delete_post():
 #-----------------------------------------------------------------------------
 #Chat
 @app.get('/chat')
-@app.get('/:channel')
 def chat(channel="lobby"):
     user = verify()
     return model.chat(user, header)
@@ -367,7 +364,7 @@ def post_login():
         session.save()
         return redirect('/home')
     else:   
-        return model.page_view("reason", reason="Invalid username or password/User doesn't exist", header=header)
+        return model.page_view("login", error_msg="Invalid username or password.", header=header)
 
 
 

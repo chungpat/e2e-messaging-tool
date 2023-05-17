@@ -6,7 +6,6 @@
     Nothing here should be stateful, if it's stateful let the database handle it
 '''
 import view
-import random
 from no_sql_db import database
 
 # Initialise our views, all arguments are defaults for the template
@@ -39,7 +38,7 @@ def login_form(header):
         login_form
         Returns the view for the login_form
     '''
-    return page_view("login", header=header)
+    return page_view("/account/login", error_msg="", header=header)
 
 #-----------------------------------------------------------------------------
 # Logout
@@ -50,7 +49,7 @@ def logout(header):
         login_form
         Returns the view for the login_form
     '''
-    return page_view("logout", header=header)
+    return page_view("/account/logout", header=header)
 
 #-----------------------------------------------------------------------------
 # Chat
@@ -58,7 +57,7 @@ def logout(header):
 
 def chat(user, header):
     if not user:
-        return page_view("login", header=header)
+        return page_view("/account/login", error_msg="", header=header)
     else:
         return page_view("chat", header=header)
 
@@ -67,7 +66,7 @@ def chat(user, header):
 #-----------------------------------------------------------------------------
 def upload(user, header):
     if not user:
-        return page_view("login", header=header)
+        return page_view("/account/login", error_msg="", header=header)
     return page_view.load_template("upload")
 
 #-----------------------------------------------------------------------------
@@ -82,16 +81,16 @@ def delete(user, header):
 # Documents
 #-----------------------------------------------------------------------------
 def lectures():
-    return page_view.load_template("lecture")
+    return page_view.load_template("/resources/lecture")
 
 def tutorials():
-    return page_view.load_template("tutorial")
+    return page_view.load_template("/resources/tutorial")
 
 def assignments():
-    return page_view.load_template("assignment")
+    return page_view.load_template("/resources/assignment")
 
 def others():
-    return page_view.load_template("other")
+    return page_view.load_template("/resources/other")
 
 #-----------------------------------------------------------------------------
 # Register
@@ -102,7 +101,7 @@ def register(header):
         index
         Returns the view for the index
     '''
-    return page_view("register", header=header)
+    return page_view("/account/register", header=header, error="", success="")
 
 #-----------------------------------------------------------------------------
 
@@ -112,9 +111,6 @@ def register_check(username, password, password_c, pass_length, upper, num, spec
     register = True
     if password != password_c:
         err_str = "Passwords weren't the same."
-        register = False
-    elif not username:
-        err_str = "Empty username field"
         register = False
     elif pass_length <= 10:
         err_str = "Password is too short."
@@ -128,33 +124,11 @@ def register_check(username, password, password_c, pass_length, upper, num, spec
     if register: 
         database.add_user(username, password)
         database.save_tables()
-        return page_view("register_valid", header=header)
+        return page_view("/account/register", header=header, error="", success="Successfully registered!")
     else:
-        return page_view("register_invalid", reason=err_str, header=header)
+        return page_view("/account/register", header=header, error=err_str, success="")
 
 # Check the login credentials
 def login_check(username, password):
     database.load()
     return database.user_authenticate(username, password)
-
-
-#-----------------------------------------------------------------------------
-# Debug
-#-----------------------------------------------------------------------------
-
-def debug(cmd):
-    try:
-        return str(eval(cmd))
-    except:
-        pass
-
-
-#-----------------------------------------------------------------------------
-# 404
-# Custom 404 error page
-#-----------------------------------------------------------------------------
-
-def handle_errors(error):
-    error_type = error.status_line
-    error_msg = error.body
-    return page_view("error", error_type=error_type, error_msg=error_msg)
