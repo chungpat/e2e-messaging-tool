@@ -80,7 +80,7 @@ def upload(user, header):
 def delete(user, header):
     if (user != "admin"):
         return index(username=user, header=header)
-    return page_view("delete", header=header, reason="")
+    return page_view("delete", header=header, success="", error="")
 
 #-----------------------------------------------------------------------------
 # Documents

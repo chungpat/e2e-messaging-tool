@@ -11,8 +11,8 @@ import pickle, bcrypt
 import os.path
 from Crypto.Hash import SHA256
 
-salt_table = "salt.pkl"
-pass_table = "pass.pkl"
+salt_table = "./data/salt.pkl"
+pass_table = "./data/pass.pkl"
 class DB():
     '''
     This is a singleton class that handles all the tables

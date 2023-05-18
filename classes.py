@@ -1,4 +1,4 @@
-import time
+from time import time
 class Message(object):
     def __init__(self, nick, text):
         self.time = time()
