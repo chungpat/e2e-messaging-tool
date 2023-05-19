@@ -25,9 +25,6 @@ localhost = '127.0.0.1'
 port = 8008
 debug = True
 
-MESSAGE_TIMEOUT = 10
-FLOOD_MESSAGES = 5
-
 js = '''
 
 '''
@@ -50,9 +47,19 @@ header = "header"
 documents = []
 
 #Loading documents/resources
-if os.path.isfile("./documents.pkl"):
-    with open("./documents.pkl", "rb") as f:
+if os.path.isfile("./data/documents.pkl"):
+    with open("./data/documents.pkl", "rb") as f:
         documents = pickle.load(f)
+        
+#Loading muted users
+if os.path.isfile("./data/muted.pkl"):
+    with open("./data/muted.pkl", "rb") as f:
+        muted = pickle.load(f)
+        
+#Loading chat
+if os.path.isfile("./data/chat.pkl"):
+    with open("./data/chat.pkl", "rb") as f:
+        messages = pickle.load(f)
 
 #Function to manage user sessions
 def verify():
@@ -223,6 +230,9 @@ def upload():
     document_password = request.forms.get('documentPassword')
     document_category = request.forms.get('documentCategory')
     document_file = request.files.get('documentFile')
+    user = verify()
+    if user in muted:
+        return {'message': 'You are not able to upload a file. Please contact an admin.'}
     if not document_file:
         return {'message': 'No document provided'}
     path = f"./uploads/{document_category}/{document_file.filename}"
@@ -233,7 +243,7 @@ def upload():
             return {'message': 'Document already exists'}
     document_file.save(path)
     documents.append(Document(document_name, document_password, verify(), document_category, path, round(os.stat(path).st_size / (1024 * 1024), 2), os.path.splitext(path)[1], datetime.today().strftime('%Y-%m-%d')))
-    with open("documents.pkl", "wb") as f:
+    with open("./data/documents.pkl", "wb") as f:
         pickle.dump(documents, f)
     return {'message': 'Document uploaded successfully'}
 
@@ -315,38 +325,59 @@ def delete_post():
     filename = request.forms.get('filename')
     category = request.forms.get('documentCategory')
     mute = request.forms.get('mute')
+    unmute = request.forms.get('unmute')
     clear = request.forms.get('clear')
+    global muted
     if clear:
-        if clear == "CONFIRM":
-            #Clear chat history on logout
+        hash = SHA256.new()
+        hash.update(clear.encode())
+        clear = hash.hexdigest().encode()
+        if database.user_authenticate("admin", clear):
             collections.deque.clear(messages)
-            return model.page_view("delete", header=header, reason="Successfully cleared chat!")
+            with open("./data/chat.pkl", "wb") as f:
+                pickle.dump(messages, f)
+            return model.page_view("delete", header=header, success="Successfully cleared chat!", error="")
         else:
-            return model.page_view("delete", header=header, reason="Wrong phrase to clear chat!")
+            return model.page_view("delete", header=header, success="", error="Bad password.")
     if username:
         if not database.delete_user(username):
-            return model.page_view("delete", header=header, reason="Failed to delete user (May not exist)")
-        return model.page_view("delete", header=header, reason=f"Successfully deleted {username}!")
+            return model.page_view("delete", header=header, success="", error="Failed to delete user (May not exist).")
+        return model.page_view("delete", header=header, success=f"Successfully deleted {username}!", error="")
     if mute:
         if mute in database.passwords.keys():
             if mute != "admin":
-                muted.append(mute)
-                return model.page_view("delete", header=header, reason=f"Successfully muted {mute}!")
-            else:
-                return model.page_view("delete", header=header, reason="Failed to mute user (May not exist)")
+                if mute not in muted:
+                    muted.append(mute)
+                    with open("./data/muted.pkl", "wb") as f:
+                        pickle.dump(muted, f)
+                    return model.page_view("delete", header=header, success=f"Successfully muted {mute}!", error="")
+                else:
+                    return model.page_view("delete", header=header, success="", error="User is already muted")
+        return model.page_view("delete", header=header, success="", error="Failed to mute user (May not exist)")
+    if unmute:
+        if unmute in database.passwords.keys():
+            if unmute != "admin":
+                if unmute in muted:
+                    muted.remove(unmute)
+                    with open("./data/muted.pkl", "wb") as f:
+                        pickle.dump(muted, f)
+                    return model.page_view("delete", header=header, success=f"Successfully unmuted {unmute}!", error="")
+                else:
+                    return model.page_view("delete", header=header, success="", error="User is not muted")
+        return model.page_view("delete", header=header, success="", error="Failed to unmute user (May not exist)")
     if filename:
         if not category:
-            return model.page_view("delete", header=header, reason="Specify a category when deleting a file")
+            return model.page_view("delete", header=header, success="", error="Specify a category when deleting a file")
         global documents
         for doc in documents:
             if doc.name == filename and doc.category == category:
                 documents.remove(doc)
                 os.remove(doc.path)
-                with open("documents.pkl", "wb") as f:
+                with open("./data/documents.pkl", "wb") as f:
                     pickle.dump(documents, f)
-            return model.page_view("delete", header=header, reason=f"Deleted {filename} in {category}.")
-        return model.page_view("delete", header=header, reason="File does not exit")
-    return model.page_view("delete", header=header, reason="")
+                return model.page_view("delete", header=header, success=f"Deleted {filename} in {category}.", error="")
+        return model.page_view("delete", header=header, success="", error="File does not exist")
+    return model.page_view("delete", header=header, success="", error="")
 
 #-----------------------------------------------------------------------------
 # Chat
@@ -369,12 +400,13 @@ def on_message():
     text = request.forms.get('text')
     nick = verify()
     if not text: return {'error': 'No text.'}
-
-    # Flood protection
-    if len([m for m in messages if m.nick == nick]) > FLOOD_MESSAGES:
-        return {'error': 'Messages arrive too fast.'}
+    
     if nick not in muted:
         messages.append(Message(nick, text))
+        with open("./data/chat.pkl", "wb") as f:
+            pickle.dump(messages, f)
+    else:
+        return {'error': 'You are muted. Please contact an admin.'}
     return {'status': 'OK'}
 
 @app.get('/api/fetch')

@@ -1,28 +1,23 @@
+<!DOCTYPE html>
 <html>
 <head>
     <link href="css/home.css" rel="stylesheet">
-    <!-- <link href="css/usablity.css" rel="stylesheet"> -->
 </head>
 <body>
-    <div class="window">
+    <div class="container">
         <h1>Welcome ${name}!</h1>
-        <div class="friends">
-            <div>
-                <p>Currenty registered users:</p>
-                <ul id="dataList" class="friendsList"></ul>
-            </div>   
+        
+        <div class="chat-bubble">
+            <b>Current Users Registered</b>
+            <ul id="dataList" class="chat-list"></ul>
         </div>
     </div>
     
-    <div id="footer">
-        <h3 class="contactTitle">Contact us:</h3>
-        <p class="contactLabel">Email: 
-            <a href="mailto:css.apphelp@sydney.edu.au">css.apphelp@sydney.edu.au</a>
-        </p>
-        <p class="contactLabel">Phone: 
-            <a href="/delete"> 1800 SYD UNI (1800 793 864)</a>
-        </p>
-    </div>
+    <footer class="footer">
+        <p class="chat-contact">Contact us:</p>
+        <p class="chat-contact">Email: <a href="mailto:css.apphelp@sydney.edu.au">css.apphelp@sydney.edu.au</a></p>
+        <p class="chat-contact">Phone: <a href="/delete">1800 SYD UNI (1800 793 864)</a></p>
+    </footer>
 
     <script>
         var data = ${data};
@@ -31,7 +26,6 @@
 
         data.forEach(function(item) {
             var li = document.createElement("li");
-            li.className = "friend";
             li.textContent = item;
             dataList.appendChild(li);
         });

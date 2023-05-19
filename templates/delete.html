@@ -1,23 +1,42 @@
-Hello Admin!<br>
-<strong>${reason}</strong>
-</p>
-<p>
-<form action="/delete" method="post">
-    Delete User: <input name="username" type="text" /><br><br>
-    Mute User: <input name="mute" type="text" /><br><br>
-    Delete File: <input name="filename" type="text" />
-    <select name="documentCategory">
-        <option value="" disabled selected>Select a Category</option>
-        <option value="lecture">Lecture Slides</option>
-        <option value="tutorial">Tutorial Content</option>
-        <option value="assignment">Assignment Work</option>
-        <option value="other">Other</option>
-      </select>
-      <br><br>
-    Clear Chat (TYPE "CONFIRM"): <input name="clear" type="text" /><br><br>
-    <input type="submit" value="Confirm">
-</form>
-</p>
-</center>
+<html>
+<head>
+  <title>Administrator Page</title>
+  <link rel="stylesheet" href="css/form.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Actions</h1>
+    <form action="/delete" method="post">
+      <label for="username">Delete User:</label>
+      <input type="text" id="username" name="username">
 
+      <label for="mute">Mute User:</label>
+      <input type="text" id="mute" name="mute">
 
+      <label for="mute">Unmute User:</label>
+      <input type="text" id="unmute" name="unmute">
+
+      <div class="delete-file-group">
+        <label for="filename">Delete File:</label>
+        <div class="delete-file-inputs">
+          <select name="documentCategory">
+            <option value="" disabled selected>Select a Category</option>
+            <option value="lecture">Lecture Slides</option>
+            <option value="tutorial">Tutorial Content</option>
+            <option value="assignment">Assignment Work</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="text" id="filename" name="filename">
+        </div>
+      </div>
+
+      <label for="clear">Clear Chat (ENTER PASSWORD):</label>
+      <input type="password" id="clear" name="clear">
+
+      <input type="submit" value="Confirm">
+    </form>
+    <p id="successMessage" class="success-message">${success}</p>
+    <p id="errorMessage" class="error-message">${error}</p>
+  </div>
+</body>
+</html>
