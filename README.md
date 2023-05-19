@@ -1,4 +1,4 @@
-This web-app has been designed to 
+To run the program: python3 controller.py
 
 ## Overview ##
 
