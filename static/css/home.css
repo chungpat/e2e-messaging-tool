@@ -1,0 +1,78 @@
+/* Reset default browser styles */
+body, p, a {
+    margin: 0;
+    padding: 0;
+}
+
+b {
+    padding-left: 20px;
+}
+
+/* Body styles */
+body {
+    background-color: #f8f8f8;
+    font-family: Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+}
+
+.container {
+    padding: 20px;
+}
+
+/* Heading styles */
+h1 {
+    color: #333;
+    font-size: 24px;
+    margin-bottom: 20px;
+}
+
+/* Chat bubble styles */
+.chat-bubble {
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 10px;
+    padding: 10px;
+}
+
+/* List item styles */
+.chat-list {
+    margin-top: 10px;
+    padding-left: 20px;
+    list-style-type: none;
+    display: flex;
+    flex-direction: column;
+    background-color: inherit;
+    border-top: 1px solid #ddd;
+}
+
+.chat-list-item {
+    margin-bottom: 5px;
+}
+
+.footer {
+    background-color: #f8f8f8;
+    border-top: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.chat-contact {
+    color: darkgray;
+    margin-bottom: 5px;
+}
+
+.chat-contact a {
+    color: darkgray;
+    text-decoration: none;
+}
+
+.chat-contact a:hover {
+    text-decoration: underline;
+}

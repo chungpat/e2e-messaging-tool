@@ -1,8 +1,34 @@
-Welcome ${name}!
-<br/>
-<b>Current Users Registered</b>
-<br/>
-${data}
-<p style="color:#FF0000">Contact us:</p>
-<p style="color:#FF0000">Email: <a href="mailto:css.apphelp@sydney.edu.au">css.apphelp@sydney.edu.au</a></p>
-<p style="color:#FF0000">Phone: <a href="/delete"> 1800 SYD UNI (1800 793 864)</a></p>
+<!DOCTYPE html>
+<html>
+<head>
+    <link href="css/home.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome ${name}!</h1>
+        
+        <div class="chat-bubble">
+            <b>Current Users Registered</b>
+            <ul id="dataList" class="chat-list"></ul>
+        </div>
+    </div>
+    
+    <footer class="footer">
+        <p class="chat-contact">Contact us:</p>
+        <p class="chat-contact">Email: <a href="mailto:css.apphelp@sydney.edu.au">css.apphelp@sydney.edu.au</a></p>
+        <p class="chat-contact">Phone: <a href="/delete">1800 SYD UNI (1800 793 864)</a></p>
+    </footer>
+
+    <script>
+        var data = ${data};
+
+        var dataList = document.getElementById("dataList");
+
+        data.forEach(function(item) {
+            var li = document.createElement("li");
+            li.textContent = item;
+            dataList.appendChild(li);
+        });
+    </script>
+</body>
+</html>
